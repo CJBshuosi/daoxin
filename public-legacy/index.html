@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>道心文案</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">道心文案</div>
+  <div class="header-sub">自定义Track · AI文案生成</div>
+  <div class="header-right">
+    <span style="color:#666">API Key：</span>
+    <input class="api-input" type="password" id="apiKey" placeholder="sk-ant-..."/>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-label">
+      我的赛道
+      <button class="add-track-btn" onclick="openAddTrack()">+ 新增</button>
+    </div>
+    <div id="trackList"></div>
+    <div class="sidebar-sep"></div>
+    <div class="mem-section">
+      <div class="mem-label">当前Track记忆</div>
+      <div class="mem-text" id="memDisplay">选择一个Track后显示</div>
+      <button class="mem-edit-btn" onclick="openMemModal()">✏ 编辑记忆</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="input-zone">
+      <div class="track-header">
+        <span class="track-badge" id="currentBadge" style="background:#33333322;color:#888">请先选择赛道</span>
+        <span class="track-desc-small" id="currentDesc"></span>
+      </div>
+      <div class="input-row">
+        <div class="input-group">
+          <div class="input-label">主题 / 提示词</div>
+          <textarea class="input-field" id="promptInput" rows="2" placeholder="输入你的视频主题..."></textarea>
+        </div>
+        <button class="generate-btn" id="genBtn" onclick="generate()">生 成</button>
+      </div>
+      <div class="ref-row" id="refRow">
+        <span class="ref-label">对标账号：</span>
+        <button class="ref-add" onclick="addRef()">+ 添加账号</button>
+      </div>
+    </div>
+    <div class="output-area" id="outputArea">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-char">文</div>
+        <div>新增赛道，输入主题，点击生成</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增/编辑 Track Modal -->
+<div class="modal-bg" id="trackModal">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="trackModalTitle">新增赛道</span>
+      <button class="modal-close" onclick="closeTrackModal()">×</button>
+    </div>
+    <label>赛道名称</label>
+    <input type="text" id="tName" placeholder="例如：道家养生、职场干货、情感治愈" maxlength="12"/>
+    <label>赛道描述（一句话）</label>
+    <input type="text" id="tDesc" placeholder="例如：传统道家养生知识分享" maxlength="30"/>
+    <label>标志颜色</label>
+    <div class="color-row" id="colorRow"></div>
+    <label>平台审核禁忌词 <span style="font-weight:300;color:var(--ink3)">（选填，逗号分隔）</span></label>
+    <input type="text" id="tBanned" placeholder="例如：治疗,根治,特效,绝对"/>
+    <label>Few-shot 爆款参考文案 <span style="font-weight:300;color:var(--ink3)">（选填，粘贴1-3条爆款文案）</span></label>
+    <textarea id="tFewShot" rows="5" placeholder="把这个赛道里你觉得好的视频文案粘贴在这里&#10;AI会直接学习它的节奏和用词。"></textarea>
+    <div class="few-shot-hint">粘贴真实爆款文案，比任何风格描述都管用。</div>
+    <div class="modal-footer">
+      <button class="modal-btn" onclick="closeTrackModal()">取消</button>
+      <button class="modal-btn primary" onclick="saveTrack()">保存赛道</button>
+    </div>
+  </div>
+</div>
+
+<!-- 记忆编辑 Modal -->
+<div class="modal-bg" id="memModal">
+  <div class="modal">
+    <div class="modal-title">
+      <span>编辑记忆 · <span id="memTrackName"></span></span>
+      <button class="modal-close" onclick="closeMemModal()">×</button>
+    </div>
+    <p style="font-size:12px;color:var(--ink3);margin-bottom:10px;line-height:1.7">
+      这里的内容会在每次生成时注入给AI。<br>可以写用户偏好、忌用词、风格要求等。
+    </p>
+    <textarea id="memEditArea" rows="7" placeholder="例如：&#10;- 用户偏好引用道德经原文&#10;- 不喜欢过于学术化的表达&#10;- 结尾要有情感共鸣，不要硬广关注"></textarea>
+    <div class="modal-footer">
+      <button class="modal-btn" onclick="closeMemModal()">取消</button>
+      <button class="modal-btn primary" onclick="saveMemory()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
