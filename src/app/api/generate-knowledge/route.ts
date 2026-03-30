@@ -1,6 +1,6 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import { resolveModel } from '@/lib/model';
+import { resolveModel, needsJsonMode } from '@/lib/model';
 import { withApiGuard } from '@/lib/api-guard';
 
 export const POST = withApiGuard(async (req) => {
@@ -36,6 +36,7 @@ export const POST = withApiGuard(async (req) => {
 5. confidence 根据通用性设置：通用规律0.6，具体技巧0.5，经验性判断0.4`,
     prompt: `赛道名称：${name}\n描述：${desc || '无'}`,
     maxOutputTokens: 2048,
+    ...(needsJsonMode(modelId) && { mode: 'json' as const }),
   });
 
   return Response.json(object);

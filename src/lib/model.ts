@@ -5,6 +5,11 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 
 export type ModelId = 'claude' | 'qwen' | 'gemini' | 'gpt4';
 
+/** Qwen doesn't support JSON Schema responseFormat, needs mode: 'json' for generateObject */
+export function needsJsonMode(modelId?: string): boolean {
+  return modelId === 'qwen';
+}
+
 export function resolveModel(modelId?: string, apiKey?: string) {
   switch (modelId) {
     case 'qwen': {

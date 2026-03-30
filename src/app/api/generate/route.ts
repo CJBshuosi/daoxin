@@ -1,6 +1,6 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import { resolveModel } from '@/lib/model';
+import { resolveModel, needsJsonMode } from '@/lib/model';
 import { withApiGuard } from '@/lib/api-guard';
 
 // 每个 step 的输出 schema
@@ -83,6 +83,7 @@ export const POST = withApiGuard(async (req) => {
     system: finalSystemPrompt,
     prompt: userMessage,
     maxOutputTokens: 4096,
+    ...(needsJsonMode(modelId) && { mode: 'json' as const }),
   });
 
   return Response.json(object);

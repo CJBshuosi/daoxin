@@ -1,6 +1,6 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import { resolveModel } from '@/lib/model';
+import { resolveModel, needsJsonMode } from '@/lib/model';
 import { withApiGuard } from '@/lib/api-guard';
 
 const analysisSchema = z.object({
@@ -81,6 +81,7 @@ ${profile ? `## 赛道画像
     schema: analysisSchema,
     system: SYSTEM_PROMPT,
     prompt: userMessage,
+    ...(needsJsonMode(modelId) && { mode: 'json' as const }),
   });
 
   return Response.json(object);
