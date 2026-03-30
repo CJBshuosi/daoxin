@@ -138,13 +138,16 @@ A centralized environment for all your content needs:
 
 ### 🖼️ Screenshots
 
-<img src="https://placehold.co/800x450/2d2d4d/ffffff?text=Workspace+Interface" alt="Workspace Interface" width="100%">
+<img width="1470" height="800" alt="截屏2026-03-30 16 49 51" src="https://github.com/user-attachments/assets/dc25d448-a029-4bd0-93b6-b38a08c27f78" />
+
 <em><p align="center">The core workspace where AI-driven content generation occurs.</p></em>
 
-<img src="https://placehold.co/800x450/2d2d4d/ffffff?text=Generation+Wizard" alt="Generation Wizard" width="100%">
+<img width="1470" height="801" alt="截屏2026-03-30 16 50 01" src="https://github.com/user-attachments/assets/4d276d10-1319-468d-8e40-c70c6ba38e65" />
+
 <em><p align="center">The multi-step wizard guiding users from strategy to final polish.</p></em>
 
-<img src="https://placehold.co/800x450/2d2d4d/ffffff?text=Performance+Analysis" alt="Performance Analysis" width="100%">
+<img width="1470" height="803" alt="截屏2026-03-30 16 58 22" src="https://github.com/user-attachments/assets/e76c6593-81ed-4a43-8ed5-9b94b90aea09" />
+
 <em><p align="center">Visualizing performance metrics and emotion curves for generated content.</p></em>
 
 ---
