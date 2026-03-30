@@ -223,13 +223,19 @@ graph LR
 
 ## 📸 产品截图
 
-<img src="https://placehold.co/800x450/2d2d4d/ffffff?text=工作台界面" alt="工作台" width="100%">
+<img width="1470" height="800" alt="截屏2026-03-30 16 49 51" src="https://github.com/user-attachments/assets/6fee5285-7b3a-45a7-a3a8-cf17372de6db" />
+
 <em><p align="center">工作台 — AI 驱动的内容创作主界面</p></em>
 
-<img src="https://placehold.co/800x450/2d2d4d/ffffff?text=创作流水线" alt="创作流水线" width="100%">
-<em><p align="center">五步引导式创作流水线</p></em>
+<img width="1469" height="797" alt="截屏2026-03-30 17 02 58" src="https://github.com/user-attachments/assets/894fb6d1-e3e2-4842-9d23-3e6b6f529df2" />
 
-<img src="https://placehold.co/800x450/2d2d4d/ffffff?text=数据分析" alt="数据分析" width="100%">
+<em><p align="center">24个记忆种子</p></em>
+
+<img width="1470" height="804" alt="截屏2026-03-30 17 02 36" src="https://github.com/user-attachments/assets/dcddcd40-639c-4a1f-a74f-0d6044cc1b4a" />
+
+<em><p align="center">赛道管理</p></em>
+
+<img width="1470" height="804" alt="截屏2026-03-30 17 01 46" src="https://github.com/user-attachments/assets/3f4e75b3-7eae-457e-9e7b-cce6e018144d" />
 <em><p align="center">数据表现分析与情绪曲线可视化</p></em>
 
 ---
