@@ -21,6 +21,8 @@ export default function AnalysisPanel({ track }: AnalysisPanelProps) {
   const updateMemoryEntry = useTrackStore(s => s.updateMemoryEntry);
   const deleteMemoryEntry = useTrackStore(s => s.deleteMemoryEntry);
   const modelId = useSettingsStore(s => s.model);
+  const apiKeys = useSettingsStore(s => s.apiKeys);
+  const apiKey = apiKeys[modelId] || '';
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(false);
@@ -46,9 +48,11 @@ export default function AnalysisPanel({ track }: AnalysisPanelProps) {
         (b.views * 0.3 + b.likes * 0.25 + b.saves * 0.2) - (a.views * 0.3 + a.likes * 0.25 + a.saves * 0.2)
       );
 
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (apiKey) headers['x-api-key'] = apiKey;
       const resp = await fetch('/api/performance/analyze', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           summary,
           topItems: sorted.slice(0, 3),

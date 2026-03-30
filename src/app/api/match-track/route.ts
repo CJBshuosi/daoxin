@@ -5,6 +5,7 @@ import { resolveModel } from '@/lib/model';
 import { withApiGuard } from '@/lib/api-guard';
 
 export const POST = withApiGuard(async (req) => {
+  const apiKey = req.headers.get('x-api-key') || '';
   const { name, desc, model: modelId } = await req.json();
 
   if (!name) {
@@ -16,7 +17,7 @@ export const POST = withApiGuard(async (req) => {
     .join(', ');
 
   const { object } = await generateObject({
-    model: resolveModel(modelId),
+    model: resolveModel(modelId, apiKey),
     schema: z.object({
       match: z.string().nullable().describe('最匹配的内置赛道 ID，如果没有合适的返回 null'),
       matchName: z.string().nullable().describe('匹配的赛道名称'),

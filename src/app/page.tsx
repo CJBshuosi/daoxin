@@ -136,10 +136,11 @@ export default function Home() {
             if (confirmed) {
               const perfState = rawPerf ? (JSON.parse(rawPerf)?.state ?? JSON.parse(rawPerf)) : null;
               await migrateLocalDataToSupabase(user!.id, trackState, perfState);
-              localStorage.removeItem('daoxin_v1');
-              localStorage.removeItem('daoxin_performance');
               didMigrate = true;
             }
+            // 无论确定还是取消，都清掉旧数据，不再弹窗
+            localStorage.removeItem('daoxin_v1');
+            localStorage.removeItem('daoxin_performance');
           }
         } catch {
           // Ignore parse errors — proceed with normal hydration

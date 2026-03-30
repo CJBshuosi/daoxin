@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { Grid, BookOpen, TrendingUp, FileText, Settings, User } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Grid, BookOpen, TrendingUp, FileText, Settings, User, LogOut, Mail } from 'lucide-react';
 import { type PageId } from '@/store/useNavigationStore';
+import { useAuth } from '@/hooks/useAuth';
 
 export type { PageId };
 
@@ -20,6 +21,21 @@ const NAV_ITEMS: { id: PageId; icon: typeof Grid; label: string }[] = [
 
 export default function SidebarMinimal({ activePage, onNavigate }: SidebarMinimalProps) {
   const [hovered, setHovered] = useState<string | null>(null);
+  const [showUserPanel, setShowUserPanel] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const { user, signOut } = useAuth();
+
+  // 点击外部关闭面板
+  useEffect(() => {
+    if (!showUserPanel) return;
+    function handleClick(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setShowUserPanel(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showUserPanel]);
 
   return (
     <aside className="tw-sidebar">
@@ -68,14 +84,93 @@ export default function SidebarMinimal({ activePage, onNavigate }: SidebarMinima
       </button>
 
       {/* User avatar */}
-      <button
-        className="tw-sidebar-btn tw-sidebar-avatar"
-        onMouseEnter={() => setHovered('user')}
-        onMouseLeave={() => setHovered(null)}
-      >
-        <User size={18} />
-        {hovered === 'user' && <div className="tw-tooltip">用户</div>}
-      </button>
+      <div style={{ position: 'relative' }} ref={panelRef}>
+        <button
+          className="tw-sidebar-btn tw-sidebar-avatar"
+          onClick={() => setShowUserPanel(v => !v)}
+          onMouseEnter={() => setHovered('user')}
+          onMouseLeave={() => setHovered(null)}
+        >
+          <User size={18} />
+          {hovered === 'user' && !showUserPanel && <div className="tw-tooltip">用户</div>}
+        </button>
+
+        {showUserPanel && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 'calc(100% + 12px)',
+              width: 260,
+              background: 'var(--bg-screen, #FCF9F0)',
+              border: '1px solid var(--border-light, #C8BFA9)',
+              borderRadius: 12,
+              padding: '16px',
+              boxShadow: '0 4px 24px rgba(0,0,0,0.1)',
+              zIndex: 100,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: 'var(--accent, #E85D3B)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <User size={18} color="white" />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary, #2A2522)' }}>
+                  {user?.user_metadata?.nickname || '用户'}
+                </div>
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '8px 0',
+                fontSize: 13,
+                color: 'var(--text-secondary, #3A3530)',
+                borderTop: '1px solid var(--border-light, #C8BFA9)',
+              }}
+            >
+              <Mail size={14} style={{ opacity: 0.6 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user?.email || '未绑定邮箱'}
+              </span>
+            </div>
+
+            <button
+              onClick={() => { setShowUserPanel(false); signOut(); }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                width: '100%',
+                padding: '10px 0 0',
+                marginTop: 8,
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                fontSize: 13,
+                color: '#dc2626',
+                borderTop: '1px solid var(--border-light, #C8BFA9)',
+              }}
+            >
+              <LogOut size={14} />
+              退出登录
+            </button>
+          </div>
+        )}
+      </div>
     </aside>
   );
 }

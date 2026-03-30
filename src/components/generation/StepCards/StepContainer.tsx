@@ -29,10 +29,12 @@ interface StepContainerProps {
   onCancel: () => void;
 }
 
-async function callGenerate(systemPrompt: string, userMessage: string, step: string, modelId?: string) {
+async function callGenerate(systemPrompt: string, userMessage: string, step: string, modelId?: string, apiKey?: string) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (apiKey) headers['x-api-key'] = apiKey;
   const resp = await fetch('/api/generate', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ systemPrompt, userMessage, step, model: modelId }),
   });
   if (!resp.ok) {
@@ -59,6 +61,8 @@ function matchStrategyKey(name: string): StrategyType | undefined {
 export default function StepContainer({ topic, onComplete, onCancel }: StepContainerProps) {
   const currentTrack = useTrackStore(s => s.getCurrentTrack());
   const modelId = useSettingsStore(s => s.model);
+  const apiKeys = useSettingsStore(s => s.apiKeys);
+  const apiKey = apiKeys[modelId] || '';
   const mergeAIMemoryEntries = useTrackStore(s => s.mergeAIMemoryEntries);
   const { user } = useAuth();
   const incrementCount = useTrackStore(s => s.incrementCount);
@@ -99,7 +103,7 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
       searchContextRef.current = searchContext;
       usedMemoryIdsRef.current = memoryResult.usedIds;
       const systemPrompt = buildStep1Prompt(currentTrack, memoryResult.prompt, searchContext);
-      const data = await callGenerate(systemPrompt, `主题：${topic}`, 'step1', modelId);
+      const data = await callGenerate(systemPrompt, `主题：${topic}`, 'step1', modelId, apiKey);
       setStep1Data(data as Step1Analysis);
       setStepState(prev => ({
         ...prev,
@@ -127,7 +131,8 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
         buildStep3Prompt(currentTrack, strategyName, subDirection, topicAnalysis, memoryResult.prompt, searchContextRef.current),
         `主题：${topic}`,
         'step3',
-        modelId
+        modelId,
+        apiKey
       );
       const topics: TopicOption[] = (data.topics || []).map((t: TopicOption) => ({
         title: t.title, hook: t.hook, hookType: t.hookType, executionPlan: t.executionPlan,
@@ -154,7 +159,8 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
         buildStep4Prompt(currentTrack, selected.title, selected.hook, selected.executionPlan, topicAnalysis, memoryResult.prompt, searchContextRef.current),
         `主题：${topic}\n\n请基于已选定的选题和钩子生成完整文案。`,
         'step4',
-        modelId
+        modelId,
+        apiKey
       );
       const result: GenerationResult = {
         copytext: data.copytext || '',
@@ -183,7 +189,8 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
         buildPolishPrompt(currentTrack, stepState.result.copytext, stepState.result.titles, instruction, memoryResult.prompt),
         `润色要求：${instruction}`,
         'polish',
-        modelId
+        modelId,
+        apiKey
       );
       setStepState(prev => ({
         ...prev,

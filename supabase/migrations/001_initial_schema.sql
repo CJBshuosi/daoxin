@@ -130,7 +130,7 @@ create or replace function public.handle_new_user()
 returns trigger as $$
 begin
   insert into public.profiles (id, phone)
-  values (new.id, new.phone);
+  values (new.id, coalesce(new.phone, new.email));
 
   insert into public.subscriptions (user_id, plan, quota_total, quota_used, quota_reset_at)
   values (new.id, 'free', 50, 0, date_trunc('month', now()) + interval '1 month');

@@ -22,12 +22,13 @@ const SYSTEM_PROMPT = `你是一个数据提取助手。用户会上传抖音视
 - 如果某个指标在截图中找不到，用0代替（completionRate和avgWatchTime用null）`;
 
 export const POST = withApiGuard(async (req) => {
+  const apiKey = req.headers.get('x-api-key') || '';
   const { image, modelId } = await req.json();
   if (!image) {
     return Response.json({ error: 'Missing image data' }, { status: 400 });
   }
 
-  const model = resolveModel(modelId);
+  const model = resolveModel(modelId, apiKey);
 
   const { object } = await generateObject({
     model,

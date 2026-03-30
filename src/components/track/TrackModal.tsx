@@ -45,6 +45,8 @@ export default function TrackModal({ open, onClose, editTrack }: TrackModalProps
   const seedKnowledge = useTrackStore(s => s.seedKnowledge);
   const seedCustomKnowledge = useTrackStore(s => s.seedCustomKnowledge);
   const modelId = useSettingsStore(s => s.model);
+  const apiKeys = useSettingsStore(s => s.apiKeys);
+  const apiKey = apiKeys[modelId] || '';
   const { user } = useAuth();
 
   useEffect(() => {
@@ -93,9 +95,11 @@ export default function TrackModal({ open, onClose, editTrack }: TrackModalProps
     setStep('matching');
     setMatchLoading(true);
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (apiKey) headers['x-api-key'] = apiKey;
       const resp = await fetch('/api/match-track', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ name: name.trim(), desc: desc.trim(), model: modelId }),
       });
       if (resp.ok) {
@@ -124,9 +128,11 @@ export default function TrackModal({ open, onClose, editTrack }: TrackModalProps
     setStep('generating');
     setGenerateLoading(true);
     try {
+      const gkHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (apiKey) gkHeaders['x-api-key'] = apiKey;
       const resp = await fetch('/api/generate-knowledge', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: gkHeaders,
         body: JSON.stringify({ name: name.trim(), desc: desc.trim(), model: modelId }),
       });
       if (resp.ok) {

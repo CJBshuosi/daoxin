@@ -8,13 +8,18 @@ export type ModelId = 'claude' | 'qwen' | 'gemini' | 'gpt4';
 interface SettingsStore {
   model: ModelId;
   setModel: (model: ModelId) => void;
+  apiKeys: Record<string, string>;
+  setApiKey: (provider: string, key: string) => void;
 }
 
 export const useSettingsStore = create<SettingsStore>()(
   persist(
     (set) => ({
-      model: 'claude',
+      model: 'qwen',
       setModel: (model) => set({ model }),
+      apiKeys: {},
+      setApiKey: (provider, key) =>
+        set((s) => ({ apiKeys: { ...s.apiKeys, [provider]: key } })),
     }),
     { name: 'daoxin_settings' }
   )

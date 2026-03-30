@@ -57,6 +57,7 @@ const schemas = {
 };
 
 export const POST = withApiGuard(async (req) => {
+  const apiKey = req.headers.get('x-api-key') || '';
   const { systemPrompt, userMessage, step, model: modelId } = await req.json();
 
   if (!systemPrompt || !userMessage || !step) {
@@ -69,7 +70,7 @@ export const POST = withApiGuard(async (req) => {
   }
 
   const { object } = await generateObject({
-    model: resolveModel(modelId),
+    model: resolveModel(modelId, apiKey),
     schema,
     system: systemPrompt,
     prompt: userMessage,

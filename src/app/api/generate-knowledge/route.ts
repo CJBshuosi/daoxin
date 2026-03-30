@@ -4,6 +4,7 @@ import { resolveModel } from '@/lib/model';
 import { withApiGuard } from '@/lib/api-guard';
 
 export const POST = withApiGuard(async (req) => {
+  const apiKey = req.headers.get('x-api-key') || '';
   const { name, desc, model: modelId } = await req.json();
 
   if (!name) {
@@ -11,7 +12,7 @@ export const POST = withApiGuard(async (req) => {
   }
 
   const { object } = await generateObject({
-    model: resolveModel(modelId),
+    model: resolveModel(modelId, apiKey),
     schema: z.object({
       seeds: z.array(z.object({
         type: z.enum(['style', 'content', 'avoid', 'pattern']).describe('记忆类型'),

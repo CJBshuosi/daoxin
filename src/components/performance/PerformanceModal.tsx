@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { usePerformanceStore } from '@/store/usePerformanceStore';
 import { useTrackStore } from '@/store/useTrackStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
 import { useAuth } from '@/hooks/useAuth';
 import { calibrateMemories } from '@/lib/calibration';
 import type { HistoryItem, StrategyType } from '@/types';
@@ -30,6 +31,9 @@ export default function PerformanceModal({ open, historyItem, onClose }: Perform
   const boostMemory = useTrackStore(s => s.boostMemory);
   const getTrackMemories = useTrackStore(s => s.getTrackMemories);
   const { user } = useAuth();
+  const modelId = useSettingsStore(s => s.model);
+  const apiKeys = useSettingsStore(s => s.apiKeys);
+  const apiKey = apiKeys[modelId] || '';
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,10 +51,12 @@ export default function PerformanceModal({ open, historyItem, onClose }: Perform
       setPreview(base64);
       setLoading(true);
       try {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (apiKey) headers['x-api-key'] = apiKey;
         const resp = await fetch('/api/performance/parse-screenshot', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: base64 }),
+          headers,
+          body: JSON.stringify({ image: base64, modelId }),
         });
         if (!resp.ok) {
           const err = await resp.json();

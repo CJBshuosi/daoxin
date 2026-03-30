@@ -35,6 +35,7 @@ const SYSTEM_PROMPT = `你是道心文案的数据分析师。基于用户的内
 请基于真实数据给出分析，不要猜测或编造数据。建议要具体、可执行。`;
 
 export const POST = withApiGuard(async (req) => {
+  const apiKey = req.headers.get('x-api-key') || '';
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { summary, topItems, bottomItems, memories, profile, modelId } = await req.json();
 
@@ -74,7 +75,7 @@ ${profile ? `## 赛道画像
 
 请分析以上数据，给出总体洞察、策略推荐、内容建议、以及记忆调整建议。`;
 
-  const model = resolveModel(modelId);
+  const model = resolveModel(modelId, apiKey);
   const { object } = await generateObject({
     model,
     schema: analysisSchema,

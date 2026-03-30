@@ -2,7 +2,6 @@
 
 import { create } from 'zustand';
 import type { Track, MemoryEntry, MemoryType, AIMemoryExtraction, HistoryItem } from '@/types';
-import { DEFAULT_TRACKS } from '@/lib/constants';
 import { genMemoryId, mergeAIMemories, decayMemories } from '@/lib/memory';
 import { getBuiltinTrack } from '@/lib/knowledge-seeds';
 import { createClient } from '@/lib/supabase/client';
@@ -137,33 +136,6 @@ export const useTrackStore = create<TrackStore>()(
         usedMemoryIds: h.used_memory_ids,
         strategy: h.strategy as HistoryItem['strategy'],
       }));
-
-      // If user has no tracks, create defaults
-      if (tracks.length === 0) {
-        for (const dt of DEFAULT_TRACKS) {
-          const id = genId();
-          const track: Track = { ...dt, id, memories: [] };
-          tracks.push(track);
-          // Write to Supabase (fire-and-forget)
-          supabase.from('tracks').insert({
-            id,
-            user_id: userId,
-            name: dt.name,
-            description: dt.desc,
-            color: dt.color,
-            banned: dt.banned,
-            few_shot: dt.fewShot,
-            ref_accounts: dt.refAccounts,
-            count: 0,
-            knowledge_seeded: false,
-            profile_completed: false,
-            target_audience: '',
-            persona: '',
-            product: '',
-            content_goal: '',
-          }).then(() => {});
-        }
-      }
 
       set({
         tracks,
