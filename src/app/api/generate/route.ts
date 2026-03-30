@@ -35,11 +35,14 @@ const schemas = {
       emotion: z.string().describe('情绪标注，如：好奇、共鸣、惊讶、感动'),
       intensity: z.number().describe('情绪强度 1-10'),
     })).describe('情绪曲线标注'),
-    shootingGuide: z.object({
-      opening: z.string().describe('开场镜头建议'),
-      style: z.string().describe('画面风格建议'),
-      transitions: z.string().describe('转场方式建议'),
-    }).describe('拍摄指导'),
+    shootingGuide: z.preprocess(
+      (val) => typeof val === 'string' ? JSON.parse(val) : val,
+      z.object({
+        opening: z.string().describe('开场镜头建议'),
+        style: z.string().describe('画面风格建议'),
+        transitions: z.string().describe('转场方式建议'),
+      })
+    ).describe('拍摄指导'),
     structure: z.string().describe('使用的内容结构模型名称，如SCQA、故事弧线'),
     music: z.array(z.string()).describe('3个BGM风格推荐'),
     memory_entries: z.array(z.object({
