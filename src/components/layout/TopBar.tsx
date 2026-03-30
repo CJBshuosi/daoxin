@@ -5,7 +5,6 @@ import { useSettingsStore } from '@/store/useSettingsStore';
 
 const MODELS = [
   { value: 'claude' as const, label: 'Claude Sonnet', desc: '结构化输出最强' },
-  { value: 'qwen' as const, label: 'Qwen Max', desc: '中文创意最强' },
   { value: 'gemini' as const, label: 'Gemini 2.5 Pro', desc: '多模态强' },
   { value: 'gpt4' as const, label: 'GPT-4o', desc: '综合能力强' },
 ];

@@ -1,7 +1,7 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { getBuiltinTrackNames } from '@/lib/knowledge-seeds';
-import { resolveModel, needsJsonMode } from '@/lib/model';
+import { resolveModel } from '@/lib/model';
 import { withApiGuard } from '@/lib/api-guard';
 
 export const POST = withApiGuard(async (req) => {
@@ -27,7 +27,6 @@ export const POST = withApiGuard(async (req) => {
     system: `你是赛道分类助手。请以json格式返回结果。以下是内置赛道列表：\n${trackList}\n\n请根据用户新建的赛道信息，从内置列表中选出最接近的赛道。如果置信度低于0.5，match 返回 null。`,
     prompt: `赛道名称：${name}\n描述：${desc || '无'}`,
     maxOutputTokens: 256,
-    ...(needsJsonMode(modelId) && { mode: 'json' as const }),
   });
 
   return Response.json(object);

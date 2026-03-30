@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type ModelId = 'claude' | 'qwen' | 'gemini' | 'gpt4';
+export type ModelId = 'claude' | 'gemini' | 'gpt4';
 
 interface SettingsStore {
   model: ModelId;
@@ -15,7 +15,7 @@ interface SettingsStore {
 export const useSettingsStore = create<SettingsStore>()(
   persist(
     (set) => ({
-      model: 'qwen',
+      model: 'claude',
       setModel: (model) => set({ model }),
       apiKeys: {},
       setApiKey: (provider, key) =>

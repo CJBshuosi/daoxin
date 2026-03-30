@@ -1,6 +1,6 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import { resolveModel, needsJsonMode } from '@/lib/model';
+import { resolveModel } from '@/lib/model';
 import { withApiGuard } from '@/lib/api-guard';
 
 const metricsSchema = z.object({
@@ -41,7 +41,6 @@ export const POST = withApiGuard(async (req) => {
         { type: 'text', text: '请从这张抖音数据截图中提取各项指标数字。' },
       ],
     }],
-    ...(needsJsonMode(modelId) && { mode: 'json' as const }),
   });
 
   return Response.json(object);

@@ -5,9 +5,8 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useSettingsStore, type ModelId } from '@/store/useSettingsStore';
 
 const MODELS: { id: ModelId; name: string; desc: string; provider: string; keyPlaceholder: string; pros: string; cons: string }[] = [
-  { id: 'qwen', name: 'Qwen Max', desc: '阿里通义千问旗舰模型', provider: 'qwen', keyPlaceholder: 'sk-...（DashScope API Key）', pros: '中文创意最强，结构化输出稳定，性价比高', cons: '英文略弱于 Claude' },
   { id: 'claude', name: 'Claude Sonnet', desc: 'Anthropic 最新模型', provider: 'claude', keyPlaceholder: 'sk-ant-...（Anthropic API Key）', pros: '结构化输出最稳定，复杂指令遵循最好', cons: '价格较高' },
-  { id: 'gemini', name: 'Gemini 2.5 Pro', desc: 'Google 最新模型', provider: 'gemini', keyPlaceholder: 'AI...（Google AI API Key）', pros: '多模态强，结构化输出好，价格适中', cons: '中文创意略逊于 Qwen' },
+  { id: 'gemini', name: 'Gemini 2.5 Pro', desc: 'Google 最新模型', provider: 'gemini', keyPlaceholder: 'AI...（Google AI API Key）', pros: '多模态强，结构化输出好，价格适中', cons: '中文创意略逊' },
   { id: 'gpt4', name: 'GPT-4o', desc: 'OpenAI 旗舰模型', provider: 'gpt4', keyPlaceholder: 'sk-...（OpenAI API Key）', pros: '综合能力强，创意好', cons: '价格高，中文偶有不自然' },
 ];
 

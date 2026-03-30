@@ -1,6 +1,6 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import { resolveModel, needsJsonMode } from '@/lib/model';
+import { resolveModel } from '@/lib/model';
 import { withApiGuard } from '@/lib/api-guard';
 
 // 每个 step 的输出 schema
@@ -72,18 +72,12 @@ export const POST = withApiGuard(async (req) => {
     return Response.json({ error: `未知 step: ${step}` }, { status: 400 });
   }
 
-  // Qwen OpenAI-compatible mode requires "json" keyword in prompt
-  const finalSystemPrompt = systemPrompt.includes('json')
-    ? systemPrompt
-    : `${systemPrompt}\n\n请以json格式返回结果。`;
-
   const { object } = await generateObject({
     model: resolveModel(modelId, apiKey),
     schema,
-    system: finalSystemPrompt,
+    system: systemPrompt,
     prompt: userMessage,
     maxOutputTokens: 4096,
-    ...(needsJsonMode(modelId) && { mode: 'json' as const }),
   });
 
   return Response.json(object);
