@@ -20,7 +20,7 @@ export const POST = withApiGuard(async (req) => {
         confidence: z.number().describe('置信度 0.4-0.7'),
       })).describe('15-20条知识种子'),
     }),
-    system: `你是短视频内容策略专家。请为用户的赛道生成一套知识种子，用于指导AI生成高质量短视频文案。
+    system: `你是短视频内容策略专家。请以json格式返回结果。请为用户的赛道生成一套知识种子，用于指导AI生成高质量短视频文案。
 
 知识种子分为4种类型：
 - content: 内容偏好（受众画像、选题角度、素材方向）

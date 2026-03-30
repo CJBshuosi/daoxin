@@ -24,7 +24,7 @@ export const POST = withApiGuard(async (req) => {
       confidence: z.number().describe('匹配置信度 0-1'),
       reason: z.string().describe('一句话匹配原因'),
     }),
-    system: `你是赛道分类助手。以下是内置赛道列表：\n${trackList}\n\n请根据用户新建的赛道信息，从内置列表中选出最接近的赛道。如果置信度低于0.5，match 返回 null。`,
+    system: `你是赛道分类助手。请以json格式返回结果。以下是内置赛道列表：\n${trackList}\n\n请根据用户新建的赛道信息，从内置列表中选出最接近的赛道。如果置信度低于0.5，match 返回 null。`,
     prompt: `赛道名称：${name}\n描述：${desc || '无'}`,
     maxOutputTokens: 256,
   });

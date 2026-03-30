@@ -72,10 +72,15 @@ export const POST = withApiGuard(async (req) => {
     return Response.json({ error: `未知 step: ${step}` }, { status: 400 });
   }
 
+  // Qwen OpenAI-compatible mode requires "json" keyword in prompt
+  const finalSystemPrompt = systemPrompt.includes('json')
+    ? systemPrompt
+    : `${systemPrompt}\n\n请以json格式返回结果。`;
+
   const { object } = await generateObject({
     model: resolveModel(modelId, apiKey),
     schema,
-    system: systemPrompt,
+    system: finalSystemPrompt,
     prompt: userMessage,
     maxOutputTokens: 4096,
   });

@@ -14,7 +14,7 @@ const metricsSchema = z.object({
   avgWatchTime: z.number().nullable().describe('平均观看时长(秒)，找不到则null'),
 });
 
-const SYSTEM_PROMPT = `你是一个数据提取助手。用户会上传抖音视频数据截图，请从中提取各项指标数字。
+const SYSTEM_PROMPT = `你是一个数据提取助手。请以json格式返回结果。用户会上传抖音视频数据截图，请从中提取各项指标数字。
 
 注意：
 - 如果数字显示为"1.2万"，请转换为12000
