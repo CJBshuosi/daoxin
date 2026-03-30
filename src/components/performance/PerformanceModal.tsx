@@ -34,6 +34,8 @@ export default function PerformanceModal({ open, historyItem, onClose }: Perform
   const modelId = useSettingsStore(s => s.model);
   const apiKeys = useSettingsStore(s => s.apiKeys);
   const apiKey = apiKeys[modelId] || '';
+  const baseUrls = useSettingsStore(s => s.baseUrls);
+  const baseUrl = baseUrls[modelId] || '';
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +55,7 @@ export default function PerformanceModal({ open, historyItem, onClose }: Perform
       try {
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
         if (apiKey) headers['x-api-key'] = apiKey;
+        if (baseUrl) headers['x-base-url'] = baseUrl;
         const resp = await fetch('/api/performance/parse-screenshot', {
           method: 'POST',
           headers,

@@ -5,6 +5,7 @@ import { withApiGuard } from '@/lib/api-guard';
 
 export const POST = withApiGuard(async (req) => {
   const apiKey = req.headers.get('x-api-key') || '';
+  const baseUrl = req.headers.get('x-base-url') || '';
   const { name, desc, model: modelId } = await req.json();
 
   if (!name) {
@@ -12,7 +13,7 @@ export const POST = withApiGuard(async (req) => {
   }
 
   const { object } = await generateObject({
-    model: resolveModel(modelId, apiKey),
+    model: resolveModel(modelId, apiKey, baseUrl),
     schema: z.object({
       seeds: z.array(z.object({
         type: z.enum(['style', 'content', 'avoid', 'pattern']).describe('记忆类型'),

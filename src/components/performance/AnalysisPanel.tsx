@@ -23,6 +23,8 @@ export default function AnalysisPanel({ track }: AnalysisPanelProps) {
   const modelId = useSettingsStore(s => s.model);
   const apiKeys = useSettingsStore(s => s.apiKeys);
   const apiKey = apiKeys[modelId] || '';
+  const baseUrls = useSettingsStore(s => s.baseUrls);
+  const baseUrl = baseUrls[modelId] || '';
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(false);
@@ -50,6 +52,7 @@ export default function AnalysisPanel({ track }: AnalysisPanelProps) {
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (apiKey) headers['x-api-key'] = apiKey;
+      if (baseUrl) headers['x-base-url'] = baseUrl;
       const resp = await fetch('/api/performance/analyze', {
         method: 'POST',
         headers,

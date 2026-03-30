@@ -10,6 +10,8 @@ interface SettingsStore {
   setModel: (model: ModelId) => void;
   apiKeys: Record<string, string>;
   setApiKey: (provider: string, key: string) => void;
+  baseUrls: Record<string, string>;
+  setBaseUrl: (provider: string, url: string) => void;
 }
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -20,6 +22,9 @@ export const useSettingsStore = create<SettingsStore>()(
       apiKeys: {},
       setApiKey: (provider, key) =>
         set((s) => ({ apiKeys: { ...s.apiKeys, [provider]: key } })),
+      baseUrls: {},
+      setBaseUrl: (provider, url) =>
+        set((s) => ({ baseUrls: { ...s.baseUrls, [provider]: url } })),
     }),
     { name: 'daoxin_settings' }
   )

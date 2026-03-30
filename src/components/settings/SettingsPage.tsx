@@ -4,10 +4,10 @@ import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { useSettingsStore, type ModelId } from '@/store/useSettingsStore';
 
-const MODELS: { id: ModelId; name: string; desc: string; provider: string; keyPlaceholder: string; pros: string; cons: string }[] = [
-  { id: 'claude', name: 'Claude Sonnet', desc: 'Anthropic 最新模型', provider: 'claude', keyPlaceholder: 'sk-ant-...（Anthropic API Key）', pros: '结构化输出最稳定，复杂指令遵循最好', cons: '价格较高' },
-  { id: 'gemini', name: 'Gemini 2.5 Pro', desc: 'Google 最新模型', provider: 'gemini', keyPlaceholder: 'AI...（Google AI API Key）', pros: '多模态强，结构化输出好，价格适中', cons: '中文创意略逊' },
-  { id: 'gpt4', name: 'GPT-4o', desc: 'OpenAI 旗舰模型', provider: 'gpt4', keyPlaceholder: 'sk-...（OpenAI API Key）', pros: '综合能力强，创意好', cons: '价格高，中文偶有不自然' },
+const MODELS: { id: ModelId; name: string; desc: string; provider: string; keyPlaceholder: string; baseUrlPlaceholder: string; pros: string; cons: string }[] = [
+  { id: 'claude', name: 'Claude Sonnet', desc: 'Anthropic 最新模型', provider: 'claude', keyPlaceholder: 'sk-ant-...（Anthropic API Key）', baseUrlPlaceholder: 'https://api.anthropic.com（留空用官方地址）', pros: '结构化输出最稳定，复杂指令遵循最好', cons: '价格较高' },
+  { id: 'gemini', name: 'Gemini 2.5 Pro', desc: 'Google 最新模型', provider: 'gemini', keyPlaceholder: 'AI...（Google AI API Key）', baseUrlPlaceholder: 'https://generativelanguage.googleapis.com（留空用官方地址）', pros: '多模态强，结构化输出好，价格适中', cons: '中文创意略逊' },
+  { id: 'gpt4', name: 'GPT-4o', desc: 'OpenAI 旗舰模型', provider: 'gpt4', keyPlaceholder: 'sk-...（OpenAI API Key）', baseUrlPlaceholder: 'https://api.openai.com/v1（留空用官方地址）', pros: '综合能力强，创意好', cons: '价格高，中文偶有不自然' },
 ];
 
 export default function SettingsPage() {
@@ -15,6 +15,8 @@ export default function SettingsPage() {
   const setModel = useSettingsStore(s => s.setModel);
   const apiKeys = useSettingsStore(s => s.apiKeys);
   const setApiKey = useSettingsStore(s => s.setApiKey);
+  const baseUrls = useSettingsStore(s => s.baseUrls);
+  const setBaseUrl = useSettingsStore(s => s.setBaseUrl);
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
 
   const toggleKeyVisibility = (provider: string) => {
@@ -36,6 +38,7 @@ export default function SettingsPage() {
           {MODELS.map(m => {
             const isSelected = model === m.id;
             const keyValue = apiKeys[m.id] || '';
+            const baseUrlValue = baseUrls[m.id] || '';
             const isVisible = visibleKeys.has(m.id);
 
             return (
@@ -112,13 +115,40 @@ export default function SettingsPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Base URL input */}
+                <div
+                  style={{ marginTop: 8, marginLeft: 26 }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <label style={{ fontSize: 12, color: '#8C8276', display: 'block', marginBottom: 4 }}>
+                    API 代理地址 <span style={{ fontSize: 11, opacity: 0.7 }}>（选填，国内中转用）</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={baseUrlValue}
+                    onChange={e => setBaseUrl(m.id, e.target.value)}
+                    placeholder={m.baseUrlPlaceholder}
+                    style={{
+                      width: '100%',
+                      padding: '6px 10px',
+                      borderRadius: 8,
+                      border: '1px solid var(--border-light, #C8BFA9)',
+                      background: 'var(--bg-base, #F5F1E8)',
+                      fontSize: 13,
+                      fontFamily: 'monospace',
+                      outline: 'none',
+                      color: '#3A3530',
+                    }}
+                  />
+                </div>
               </div>
             );
           })}
         </div>
 
         <div style={{ marginTop: 20, padding: '12px 16px', borderRadius: 10, background: 'rgba(232,93,59,0.06)', fontSize: 12, color: '#5A5148', lineHeight: 1.6 }}>
-          API Key 仅保存在你的浏览器本地，不会上传到服务器。每次请求时通过加密连接直接发送到对应的 AI 服务商。
+          API Key 和代理地址仅保存在你的浏览器本地，不会上传到服务器。如果在中国大陆使用，可填写中转服务地址（如 API2D 等）。
         </div>
       </div>
     </div>

@@ -29,9 +29,10 @@ interface StepContainerProps {
   onCancel: () => void;
 }
 
-async function callGenerate(systemPrompt: string, userMessage: string, step: string, modelId?: string, apiKey?: string) {
+async function callGenerate(systemPrompt: string, userMessage: string, step: string, modelId?: string, apiKey?: string, baseUrl?: string) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (apiKey) headers['x-api-key'] = apiKey;
+  if (baseUrl) headers['x-base-url'] = baseUrl;
   const resp = await fetch('/api/generate', {
     method: 'POST',
     headers,
@@ -63,6 +64,8 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
   const modelId = useSettingsStore(s => s.model);
   const apiKeys = useSettingsStore(s => s.apiKeys);
   const apiKey = apiKeys[modelId] || '';
+  const baseUrls = useSettingsStore(s => s.baseUrls);
+  const baseUrl = baseUrls[modelId] || '';
   const mergeAIMemoryEntries = useTrackStore(s => s.mergeAIMemoryEntries);
   const { user } = useAuth();
   const incrementCount = useTrackStore(s => s.incrementCount);
@@ -103,7 +106,7 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
       searchContextRef.current = searchContext;
       usedMemoryIdsRef.current = memoryResult.usedIds;
       const systemPrompt = buildStep1Prompt(currentTrack, memoryResult.prompt, searchContext);
-      const data = await callGenerate(systemPrompt, `主题：${topic}`, 'step1', modelId, apiKey);
+      const data = await callGenerate(systemPrompt, `主题：${topic}`, 'step1', modelId, apiKey, baseUrl);
       setStep1Data(data as Step1Analysis);
       setStepState(prev => ({
         ...prev,
@@ -132,7 +135,8 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
         `主题：${topic}`,
         'step3',
         modelId,
-        apiKey
+        apiKey,
+        baseUrl
       );
       const topics: TopicOption[] = (data.topics || []).map((t: TopicOption) => ({
         title: t.title, hook: t.hook, hookType: t.hookType, executionPlan: t.executionPlan,
@@ -160,7 +164,8 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
         `主题：${topic}\n\n请基于已选定的选题和钩子生成完整文案。`,
         'step4',
         modelId,
-        apiKey
+        apiKey,
+        baseUrl
       );
       const result: GenerationResult = {
         copytext: data.copytext || '',
@@ -190,7 +195,8 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
         `润色要求：${instruction}`,
         'polish',
         modelId,
-        apiKey
+        apiKey,
+        baseUrl
       );
       setStepState(prev => ({
         ...prev,
