@@ -1,7 +1,7 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import { NextResponse } from 'next/server';
 import { resolveModel } from '@/lib/model';
+import { withApiGuard } from '@/lib/api-guard';
 
 const metricsSchema = z.object({
   views: z.number().describe('播放量'),
@@ -21,34 +21,26 @@ const SYSTEM_PROMPT = `你是一个数据提取助手。用户会上传抖音视
 - 如果数字显示为"1.2w"，请转换为12000
 - 如果某个指标在截图中找不到，用0代替（completionRate和avgWatchTime用null）`;
 
-export async function POST(req: Request) {
-  try {
-    const { image, modelId } = await req.json();
-    if (!image) {
-      return NextResponse.json({ error: 'Missing image data' }, { status: 400 });
-    }
-
-    const model = resolveModel(modelId);
-
-    const { object } = await generateObject({
-      model,
-      schema: metricsSchema,
-      system: SYSTEM_PROMPT,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image', image },
-          { type: 'text', text: '请从这张抖音数据截图中提取各项指标数字。' },
-        ],
-      }],
-    });
-
-    return NextResponse.json(object);
-  } catch (e) {
-    console.error('Screenshot parse error:', e);
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Parse failed' },
-      { status: 500 }
-    );
+export const POST = withApiGuard(async (req) => {
+  const { image, modelId } = await req.json();
+  if (!image) {
+    return Response.json({ error: 'Missing image data' }, { status: 400 });
   }
-}
+
+  const model = resolveModel(modelId);
+
+  const { object } = await generateObject({
+    model,
+    schema: metricsSchema,
+    system: SYSTEM_PROMPT,
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image', image },
+        { type: 'text', text: '请从这张抖音数据截图中提取各项指标数字。' },
+      ],
+    }],
+  });
+
+  return Response.json(object);
+});

@@ -1,7 +1,7 @@
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import { NextResponse } from 'next/server';
 import { resolveModel } from '@/lib/model';
+import { withApiGuard } from '@/lib/api-guard';
 
 const analysisSchema = z.object({
   overview: z.string().describe('1-2段总体洞察，用中文'),
@@ -34,12 +34,11 @@ const SYSTEM_PROMPT = `你是道心文案的数据分析师。基于用户的内
 
 请基于真实数据给出分析，不要猜测或编造数据。建议要具体、可执行。`;
 
-export async function POST(req: Request) {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { summary, topItems, bottomItems, memories, profile, modelId } = await req.json();
+export const POST = withApiGuard(async (req) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { summary, topItems, bottomItems, memories, profile, modelId } = await req.json();
 
-    const userMessage = `
+  const userMessage = `
 ## 赛道表现统计
 总发布: ${summary.totalPosts} 条
 平均播放: ${Math.round(summary.avgViews)}
@@ -75,20 +74,13 @@ ${profile ? `## 赛道画像
 
 请分析以上数据，给出总体洞察、策略推荐、内容建议、以及记忆调整建议。`;
 
-    const model = resolveModel(modelId);
-    const { object } = await generateObject({
-      model,
-      schema: analysisSchema,
-      system: SYSTEM_PROMPT,
-      prompt: userMessage,
-    });
+  const model = resolveModel(modelId);
+  const { object } = await generateObject({
+    model,
+    schema: analysisSchema,
+    system: SYSTEM_PROMPT,
+    prompt: userMessage,
+  });
 
-    return NextResponse.json(object);
-  } catch (e) {
-    console.error('Analysis error:', e);
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Analysis failed' },
-      { status: 500 }
-    );
-  }
-}
+  return Response.json(object);
+});
