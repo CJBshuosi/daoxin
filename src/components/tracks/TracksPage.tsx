@@ -8,6 +8,7 @@ import TrackModal from '@/components/track/TrackModal';
 import TrackProfileModal from '@/components/track/TrackProfileModal';
 import MemoryDisplay from '@/components/memory/MemoryDisplay';
 import MemoryEditModal from '@/components/memory/MemoryEditModal';
+import AnalysisPanel from '@/components/performance/AnalysisPanel';
 
 export default function TracksPage() {
   const tracks = useTrackStore(s => s.tracks);
@@ -18,6 +19,7 @@ export default function TracksPage() {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [profileTrack, setProfileTrack] = useState<Track | null>(null);
   const [memoryModalOpen, setMemoryModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'info' | 'analysis'>('info');
 
   const selected = tracks.find(t => t.id === selectedId);
 
@@ -95,41 +97,75 @@ export default function TracksPage() {
                 </div>
               </div>
 
-              {/* Info */}
-              <div className="tw-card" style={{ marginBottom: 16, cursor: 'default' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 13 }}>
-                  <div><span style={{ color: '#8C8276' }}>描述：</span>{selected.desc || '无'}</div>
-                  <div><span style={{ color: '#8C8276' }}>禁忌词：</span>{selected.banned || '无'}</div>
-                  <div><span style={{ color: '#8C8276' }}>对标账号：</span>{selected.refAccounts.length ? selected.refAccounts.join('、') : '无'}</div>
-                  <div><span style={{ color: '#8C8276' }}>知识库：</span>{selected.knowledgeSeeded ? (selected.knowledgeId === 'custom' ? 'AI 生成' : selected.knowledgeId) : '未注入'}</div>
-                </div>
-                {selected.profile && (
-                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #E3DCCB', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 13 }}>
-                    {selected.profile.targetAudience && <div><span style={{ color: '#8C8276' }}>目标受众：</span>{selected.profile.targetAudience}</div>}
-                    {selected.profile.persona && <div><span style={{ color: '#8C8276' }}>人设：</span>{selected.profile.persona}</div>}
-                    {selected.profile.product && <div><span style={{ color: '#8C8276' }}>变现：</span>{selected.profile.product}</div>}
-                    {selected.profile.contentGoal && <div><span style={{ color: '#8C8276' }}>目标：</span>{selected.profile.contentGoal}</div>}
+              {/* Tabs */}
+              <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '1px solid #E3DCCB' }}>
+                <button
+                  onClick={() => setActiveTab('info')}
+                  style={{
+                    padding: '8px 16px', fontSize: 12, cursor: 'pointer',
+                    background: 'transparent', border: 'none',
+                    borderBottom: activeTab === 'info' ? '2px solid #E85D3B' : '2px solid transparent',
+                    color: activeTab === 'info' ? '#E85D3B' : '#8C8276',
+                    fontFamily: "'Courier Prime', monospace",
+                  }}
+                >
+                  赛道信息
+                </button>
+                <button
+                  onClick={() => setActiveTab('analysis')}
+                  style={{
+                    padding: '8px 16px', fontSize: 12, cursor: 'pointer',
+                    background: 'transparent', border: 'none',
+                    borderBottom: activeTab === 'analysis' ? '2px solid #E85D3B' : '2px solid transparent',
+                    color: activeTab === 'analysis' ? '#E85D3B' : '#8C8276',
+                    fontFamily: "'Courier Prime', monospace",
+                  }}
+                >
+                  数据分析
+                </button>
+              </div>
+
+              {activeTab === 'info' ? (
+                <>
+                  {/* Info */}
+                  <div className="tw-card" style={{ marginBottom: 16, cursor: 'default' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 13 }}>
+                      <div><span style={{ color: '#8C8276' }}>描述：</span>{selected.desc || '无'}</div>
+                      <div><span style={{ color: '#8C8276' }}>禁忌词：</span>{selected.banned || '无'}</div>
+                      <div><span style={{ color: '#8C8276' }}>对标账号：</span>{selected.refAccounts.length ? selected.refAccounts.join('、') : '无'}</div>
+                      <div><span style={{ color: '#8C8276' }}>知识库：</span>{selected.knowledgeSeeded ? (selected.knowledgeId === 'custom' ? 'AI 生成' : selected.knowledgeId) : '未注入'}</div>
+                    </div>
+                    {selected.profile && (
+                      <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #E3DCCB', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 13 }}>
+                        {selected.profile.targetAudience && <div><span style={{ color: '#8C8276' }}>目标受众：</span>{selected.profile.targetAudience}</div>}
+                        {selected.profile.persona && <div><span style={{ color: '#8C8276' }}>人设：</span>{selected.profile.persona}</div>}
+                        {selected.profile.product && <div><span style={{ color: '#8C8276' }}>变现：</span>{selected.profile.product}</div>}
+                        {selected.profile.contentGoal && <div><span style={{ color: '#8C8276' }}>目标：</span>{selected.profile.contentGoal}</div>}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Few-shot */}
-              {selected.fewShot && (
-                <div className="tw-card" style={{ marginBottom: 16, cursor: 'default' }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#8C8276', marginBottom: 8 }}>参考文案</div>
-                  <div style={{ fontSize: 13, color: '#3A3530', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{selected.fewShot}</div>
-                </div>
+                  {/* Few-shot */}
+                  {selected.fewShot && (
+                    <div className="tw-card" style={{ marginBottom: 16, cursor: 'default' }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#8C8276', marginBottom: 8 }}>参考文案</div>
+                      <div style={{ fontSize: 13, color: '#3A3530', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{selected.fewShot}</div>
+                    </div>
+                  )}
+
+                  {/* Memory */}
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#3A3530', marginBottom: 12 }}>
+                    记忆系统 ({(selected.memories || []).length} 条)
+                  </div>
+                  <MemoryDisplay
+                    memories={selected.memories}
+                    trackName={selected.name}
+                    onEdit={() => setMemoryModalOpen(true)}
+                  />
+                </>
+              ) : (
+                <AnalysisPanel track={selected} />
               )}
-
-              {/* Memory */}
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#3A3530', marginBottom: 12 }}>
-                记忆系统 ({(selected.memories || []).length} 条)
-              </div>
-              <MemoryDisplay
-                memories={selected.memories}
-                trackName={selected.name}
-                onEdit={() => setMemoryModalOpen(true)}
-              />
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#C8BFA9', fontSize: 14 }}>
