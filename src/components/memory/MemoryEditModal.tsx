@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useTrackStore } from '@/store/useTrackStore';
+import { useAuth } from '@/hooks/useAuth';
 import type { MemoryEntry, MemoryType } from '@/types';
 import { MEMORY_TYPE_META } from '@/types';
 
@@ -19,6 +20,7 @@ export default function MemoryEditModal({ open, trackId, memories, onClose }: Me
   const updateMemoryEntry = useTrackStore(s => s.updateMemoryEntry);
   const deleteMemoryEntry = useTrackStore(s => s.deleteMemoryEntry);
   const boostMemory = useTrackStore(s => s.boostMemory);
+  const { user } = useAuth();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
@@ -49,7 +51,7 @@ export default function MemoryEditModal({ open, trackId, memories, onClose }: Me
 
   const handleAdd = () => {
     if (!newContent.trim()) return;
-    addMemoryEntry(trackId, { type: newType, content: newContent.trim(), source: 'user' });
+    addMemoryEntry(trackId, { type: newType, content: newContent.trim(), source: 'user' }, user!.id);
     setNewContent('');
     setAddMode(false);
   };

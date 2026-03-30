@@ -52,7 +52,8 @@ interface TrackStore {
 }
 
 // Helper: fire-and-forget Supabase writes (don't block UI)
-const sb = () => createClient();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const sb = () => createClient() as any;
 
 export const useTrackStore = create<TrackStore>()(
   (set, get) => ({
@@ -87,7 +88,8 @@ export const useTrackStore = create<TrackStore>()(
 
       // Assemble Track + memories
       const memoriesByTrack = new Map<string, MemoryEntry[]>();
-      for (const m of dbMemories || []) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const m of (dbMemories || []) as any[]) {
         const list = memoriesByTrack.get(m.track_id) || [];
         list.push({
           id: m.id,
@@ -103,7 +105,8 @@ export const useTrackStore = create<TrackStore>()(
         memoriesByTrack.set(m.track_id, list);
       }
 
-      const tracks: Track[] = (dbTracks || []).map(t => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tracks: Track[] = ((dbTracks || []) as any[]).map((t: any) => ({
         id: t.id,
         name: t.name,
         desc: t.description,
@@ -122,7 +125,8 @@ export const useTrackStore = create<TrackStore>()(
         count: t.count,
       }));
 
-      const history: HistoryItem[] = (dbHistory || []).map(h => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const history: HistoryItem[] = ((dbHistory || []) as any[]).map((h: any) => ({
         id: h.id,
         trackId: h.track_id,
         trackName: h.track_name,
@@ -178,7 +182,8 @@ export const useTrackStore = create<TrackStore>()(
       }));
 
       // Async write to Supabase (get userId from auth)
-      sb().auth.getUser().then(({ data: { user } }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      sb().auth.getUser().then(({ data: { user } }: { data: { user: any } }) => {
         if (!user) return;
         sb().from('history_items').insert({
           id,
@@ -309,7 +314,8 @@ export const useTrackStore = create<TrackStore>()(
         }),
       }));
 
-      sb().auth.getUser().then(({ data: { user } }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      sb().auth.getUser().then(({ data: { user } }: { data: { user: any } }) => {
         if (!user) return;
         sb().from('memories').insert({
           id: entryId, track_id: id, user_id: user.id,

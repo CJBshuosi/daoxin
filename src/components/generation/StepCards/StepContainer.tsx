@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTrackStore } from '@/store/useTrackStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
+import { useAuth } from '@/hooks/useAuth';
 import { buildStep1Prompt, buildStep3Prompt, buildStep4Prompt, buildPolishPrompt } from '@/lib/prompt';
 import { buildMemoryPrompt } from '@/lib/memory';
 import type { StepState, StrategyType, GenerationResult, AIMemoryExtraction, TopicOption } from '@/types';
@@ -59,6 +60,7 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
   const currentTrack = useTrackStore(s => s.getCurrentTrack());
   const modelId = useSettingsStore(s => s.model);
   const mergeAIMemoryEntries = useTrackStore(s => s.mergeAIMemoryEntries);
+  const { user } = useAuth();
   const incrementCount = useTrackStore(s => s.incrementCount);
   const runDecay = useTrackStore(s => s.runDecay);
 
@@ -202,7 +204,7 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
   const handleConfirm = useCallback((finalResult: GenerationResult) => {
     if (!currentTrack) return;
     if (finalResult.memory_entries && finalResult.memory_entries.length > 0) {
-      mergeAIMemoryEntries(currentTrack.id, finalResult.memory_entries);
+      mergeAIMemoryEntries(currentTrack.id, finalResult.memory_entries, user!.id);
     }
     runDecay(currentTrack.id);
     incrementCount(currentTrack.id);

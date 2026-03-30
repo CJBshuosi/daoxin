@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { usePerformanceStore } from '@/store/usePerformanceStore';
 import { useTrackStore } from '@/store/useTrackStore';
+import { useAuth } from '@/hooks/useAuth';
 import { calibrateMemories } from '@/lib/calibration';
 import type { HistoryItem, StrategyType } from '@/types';
 
@@ -28,6 +29,7 @@ export default function PerformanceModal({ open, historyItem, onClose }: Perform
   const getPerformanceLevel = usePerformanceStore(s => s.getPerformanceLevel);
   const boostMemory = useTrackStore(s => s.boostMemory);
   const getTrackMemories = useTrackStore(s => s.getTrackMemories);
+  const { user } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +100,7 @@ export default function PerformanceModal({ open, historyItem, onClose }: Perform
       avgWatchTime: metrics.avgWatchTime ?? undefined,
       strategy: (historyItem.strategy || 'mingdao') as StrategyType,
       source: 'screenshot',
-    });
+    }, user!.id);
 
     // Auto-calibrate memories
     const usedIds = historyItem.usedMemoryIds || [];

@@ -12,7 +12,8 @@ function computeScore(p: ContentPerformance): number {
   return p.views * 0.3 + p.likes * 0.25 + p.saves * 0.2 + p.comments * 0.1 + p.shares * 0.1 + p.followers * 0.05;
 }
 
-const sb = () => createClient();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const sb = () => createClient() as any;
 
 interface PerformanceStore {
   performances: ContentPerformance[];
@@ -40,7 +41,8 @@ export const usePerformanceStore = create<PerformanceStore>()(
         .select('*')
         .eq('user_id', userId);
 
-      const performances: ContentPerformance[] = (data || []).map(p => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const performances: ContentPerformance[] = ((data || []) as any[]).map((p: any) => ({
         id: p.id,
         historyItemId: p.history_item_id,
         trackId: p.track_id,

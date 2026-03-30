@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { usePerformanceStore } from '@/store/usePerformanceStore';
 import { useTrackStore } from '@/store/useTrackStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
+import { useAuth } from '@/hooks/useAuth';
 import { STRATEGY_META } from '@/types';
 import type { PerformanceAnalysis } from '@/types/performance';
 import type { Track, MemoryType } from '@/types';
@@ -20,6 +21,7 @@ export default function AnalysisPanel({ track }: AnalysisPanelProps) {
   const updateMemoryEntry = useTrackStore(s => s.updateMemoryEntry);
   const deleteMemoryEntry = useTrackStore(s => s.deleteMemoryEntry);
   const modelId = useSettingsStore(s => s.model);
+  const { user } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +78,7 @@ export default function AnalysisPanel({ track }: AnalysisPanelProps) {
         type: action.type as MemoryType,
         content: action.content,
         source: 'user',
-      });
+      }, user!.id);
     } else if (action.action === 'remove' && action.memoryId) {
       deleteMemoryEntry(track.id, action.memoryId);
     } else if (action.action === 'modify' && action.memoryId) {
