@@ -1,65 +1,185 @@
-import Image from "next/image";
+'use client';
+
+import { useEffect, useState } from 'react';
+import AppLayout from '@/components/layout/AppLayout';
+import { useAuth } from '@/hooks/useAuth';
+import { useTrackStore } from '@/store/useTrackStore';
+import { usePerformanceStore } from '@/store/usePerformanceStore';
+import { createClient } from '@/lib/supabase/client';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function migrateLocalDataToSupabase(userId: string, trackState: any, perfState: any) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = createClient() as any;
+
+  const tracks: unknown[] = trackState?.tracks || [];
+  const history: unknown[] = trackState?.history || [];
+  const performances: unknown[] = perfState?.performances || [];
+
+  // Upsert tracks
+  if (tracks.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const trackRows = (tracks as any[]).map((t: any) => ({
+      id: t.id,
+      user_id: userId,
+      name: t.name,
+      description: t.desc ?? '',
+      color: t.color ?? '#8B8589',
+      banned: t.banned ?? '',
+      few_shot: t.fewShot ?? '',
+      ref_accounts: t.refAccounts ?? [],
+      knowledge_id: t.knowledgeId ?? null,
+      knowledge_seeded: t.knowledgeSeeded ?? false,
+      profile_completed: t.profileCompleted ?? false,
+      target_audience: t.profile?.targetAudience ?? '',
+      persona: t.profile?.persona ?? '',
+      product: t.profile?.product ?? '',
+      content_goal: t.profile?.contentGoal ?? '',
+      count: t.count ?? 0,
+    }));
+    await supabase.from('tracks').upsert(trackRows, { onConflict: 'id' });
+
+    // Upsert memories for each track
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allMemories: any[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const t of tracks as any[]) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const memories: any[] = t.memories || [];
+      for (const m of memories) {
+        allMemories.push({
+          id: m.id,
+          track_id: m.trackId ?? t.id,
+          user_id: userId,
+          type: m.type ?? 'content',
+          content: m.content ?? '',
+          source: m.source ?? 'ai',
+          confidence: m.confidence ?? 0.5,
+          hit_count: m.hitCount ?? 0,
+        });
+      }
+    }
+    if (allMemories.length > 0) {
+      await supabase.from('memories').upsert(allMemories, { onConflict: 'id' });
+    }
+  }
+
+  // Upsert history items
+  if (history.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const historyRows = (history as any[]).map((h: any) => ({
+      id: h.id,
+      user_id: userId,
+      track_id: h.trackId,
+      track_name: h.trackName ?? '',
+      track_color: h.trackColor ?? '',
+      prompt: h.prompt ?? '',
+      result: h.result ?? null,
+      strategy: h.strategy ?? null,
+      used_memory_ids: h.usedMemoryIds ?? [],
+      created_at: h.createdAt ? new Date(h.createdAt).toISOString() : new Date().toISOString(),
+    }));
+    await supabase.from('history_items').upsert(historyRows, { onConflict: 'id' });
+  }
+
+  // Upsert performances
+  if (performances.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const perfRows = (performances as any[]).map((p: any) => ({
+      id: p.id,
+      user_id: userId,
+      history_item_id: p.historyItemId ?? null,
+      track_id: p.trackId,
+      platform: p.platform ?? 'other',
+      published_at: p.publishedAt ? new Date(p.publishedAt).toISOString() : null,
+      views: p.views ?? 0,
+      likes: p.likes ?? 0,
+      comments: p.comments ?? 0,
+      shares: p.shares ?? 0,
+      saves: p.saves ?? 0,
+      followers: p.followers ?? 0,
+      completion_rate: p.completionRate ?? null,
+      avg_watch_time: p.avgWatchTime ?? null,
+      sales: p.sales ?? null,
+      revenue: p.revenue ?? null,
+      click_rate: p.clickRate ?? null,
+      strategy: p.strategy ?? null,
+      source: p.source ?? 'manual',
+    }));
+    await supabase.from('performances').upsert(perfRows, { onConflict: 'id' });
+  }
+}
 
 export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+  const { user, loading } = useAuth();
+  const hydrated = useTrackStore(s => s.hydrated);
+  const hydrateTrack = useTrackStore(s => s.hydrate);
+  const hydratePerf = usePerformanceStore(s => s.hydrate);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!user || hydrated) return;
+
+    async function initData() {
+      // Check for legacy localStorage data
+      const rawTrack = typeof window !== 'undefined' ? localStorage.getItem('daoxin_v1') : null;
+      const rawPerf = typeof window !== 'undefined' ? localStorage.getItem('daoxin_performance') : null;
+
+      let didMigrate = false;
+      if (rawTrack) {
+        try {
+          const parsed = JSON.parse(rawTrack);
+          const trackState = parsed?.state ?? parsed;
+          const tracks: unknown[] = trackState?.tracks ?? [];
+          if (tracks.length > 0) {
+            const confirmed = window.confirm('检测到本地数据，是否导入到云端？');
+            if (confirmed) {
+              const perfState = rawPerf ? (JSON.parse(rawPerf)?.state ?? JSON.parse(rawPerf)) : null;
+              await migrateLocalDataToSupabase(user!.id, trackState, perfState);
+              didMigrate = true;
+            }
+            // 无论确定还是取消，都清掉旧数据，不再弹窗
+            localStorage.removeItem('daoxin_v1');
+            localStorage.removeItem('daoxin_performance');
+          }
+        } catch {
+          // Ignore parse errors — proceed with normal hydration
+        }
+      }
+
+      // Proceed with normal Supabase hydration
+      await Promise.all([hydrateTrack(user!.id), hydratePerf(user!.id)]);
+      void didMigrate; // suppress unused var warning
+    }
+
+    initData().catch(e => setError(e.message));
+  }, [user, hydrated, hydrateTrack, hydratePerf]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-base, #F5F1E8)' }}>
+        <p style={{ color: 'var(--text-muted, #8C8276)' }}>加载中...</p>
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-base, #F5F1E8)' }}>
+        <p style={{ color: '#dc2626' }}>数据加载失败：{error}</p>
+      </div>
+    );
+  }
+
+  if (!hydrated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-base, #F5F1E8)' }}>
+        <p style={{ color: 'var(--text-muted, #8C8276)' }}>加载数据...</p>
+      </div>
+    );
+  }
+
+  return <AppLayout />;
 }
