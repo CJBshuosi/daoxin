@@ -6,7 +6,7 @@ import { useNavigationStore } from '@/store/useNavigationStore';
 import StepContainer from '@/components/generation/StepCards/StepContainer';
 import TrackProfileModal from '@/components/track/TrackProfileModal';
 import Keyboard from './Keyboard';
-import type { GenerationResult } from '@/types';
+import type { GenerationResult, StrategyType } from '@/types';
 
 const PROMPTS = [
   '"捕捉那个转瞬即逝的灵感..."',
@@ -146,7 +146,7 @@ export default function WorkspacePage() {
     setActiveFlow('flow-' + Date.now());
   };
 
-  const handleFlowComplete = (result: GenerationResult, topic: string) => {
+  const handleFlowComplete = (result: GenerationResult, topic: string, usedMemoryIds: string[], strategy?: StrategyType) => {
     if (currentTrack) {
       addHistoryItem({
         trackId: currentTrack.id,
@@ -154,6 +154,8 @@ export default function WorkspacePage() {
         trackColor: currentTrack.color,
         prompt: topic,
         result,
+        usedMemoryIds,
+        strategy,
       });
     }
     setActiveFlow(null);
