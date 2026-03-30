@@ -1,3 +1,5 @@
+<p align="center"><strong><a href="README.zh-CN.md">中文</a> | English</strong></p>
+
 <h1 align="center"> 道心文案 </h1>
 
 <p align="center"> ⚡ The Ultimate AI-Powered Content Strategy & Documentation Engine for Professional Creators ⚡ </p>
