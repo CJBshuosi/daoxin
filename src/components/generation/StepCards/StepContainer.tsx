@@ -4,14 +4,16 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTrackStore } from '@/store/useTrackStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useAuth } from '@/hooks/useAuth';
-import { buildStep1Prompt, buildStep3Prompt, buildStep4Prompt, buildPolishPrompt } from '@/lib/prompt';
+import { buildStep1Prompt, buildStep3Prompt, buildStep4Prompt, buildStep4DynamicPrompt, buildPlannerPrompt, buildCheckerPrompt, buildOptimizePrompt, buildPolishPrompt } from '@/lib/prompt';
 import { buildMemoryPrompt } from '@/lib/memory';
-import type { StepState, StrategyType, GenerationResult, AIMemoryExtraction, TopicOption } from '@/types';
+import type { StepState, StrategyType, GenerationResult, AIMemoryExtraction, TopicOption, CheckerResult, PlannerModuleSelection } from '@/types';
 import { STRATEGY_META } from '@/types';
 import Step1TopicConfirm from './Step1TopicConfirm';
 import Step2StrategySelect from './Step2StrategySelect';
 import Step3TopicSelect from './Step3TopicSelect';
 import Step5PolishConfirm from './Step5PolishConfirm';
+import QualityScoreCard from '../QualityScoreCard';
+import type { ModuleId } from '@/lib/sub_knowledge';
 
 interface Step1Analysis {
   analysis: string;
@@ -78,6 +80,7 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
   const initialized = useRef(false);
   const searchContextRef = useRef<string>('');
   const usedMemoryIdsRef = useRef<string[]>([]);
+  const moduleSelectionsRef = useRef<{ id: ModuleId; includeExamples?: boolean }[]>([]);
 
   const fetchSearchContext = useCallback(async (query: string): Promise<string> => {
     try {
@@ -155,12 +158,32 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
     if (!currentTrack) return;
     setLoading(true);
     setError(null);
+    const selected = topics[topicIndex];
+    const memoryResult = buildMemoryPrompt(currentTrack.memories || [], topic);
+    usedMemoryIdsRef.current = memoryResult.usedIds;
+    const strategyName = STRATEGY_META[strategy].name;
+
     try {
-      const selected = topics[topicIndex];
-      const memoryResult = buildMemoryPrompt(currentTrack.memories || [], topic);
-      usedMemoryIdsRef.current = memoryResult.usedIds;
+      // Phase 1: Planner — select knowledge modules
+      setStepState(prev => ({ ...prev, step4Phase: 'planning' }));
+      const planResult = await callGenerate(
+        buildPlannerPrompt(currentTrack, topicAnalysis, strategyName, selected.executionPlan, memoryResult.prompt),
+        `选题：${selected.title}\n钩子：${selected.hook}\n执行思路：${selected.executionPlan}`,
+        'plan',
+        modelId,
+        apiKey,
+        baseUrl
+      );
+      const moduleSelections = (planResult.modules || []).map((m: PlannerModuleSelection) => ({
+        id: m.id as ModuleId,
+        includeExamples: m.loadExamples,
+      }));
+      moduleSelectionsRef.current = moduleSelections;
+
+      // Phase 2: Generator — create copytext with dynamic modules
+      setStepState(prev => ({ ...prev, step4Phase: 'generating' }));
       const data = await callGenerate(
-        buildStep4Prompt(currentTrack, selected.title, selected.hook, selected.executionPlan, topicAnalysis, memoryResult.prompt, searchContextRef.current),
+        buildStep4DynamicPrompt(currentTrack, selected.title, selected.hook, selected.executionPlan, topicAnalysis, moduleSelections, memoryResult.prompt, searchContextRef.current),
         `主题：${topic}\n\n请基于已选定的选题和钩子生成完整文案。`,
         'step4',
         modelId,
@@ -176,13 +199,99 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
         structure: data.structure,
         memory_entries: data.memory_entries as AIMemoryExtraction[] | undefined,
       };
-      setStepState(prev => ({ ...prev, step: 5, selectedTopic: topicIndex, result }));
+
+      // Phase 3: Checker — quality scoring
+      setStepState(prev => ({ ...prev, step4Phase: 'checking', result }));
+      const checkResult = await callGenerate(
+        buildCheckerPrompt(currentTrack, result.copytext, result.titles, topicAnalysis, selected.executionPlan),
+        `请评审以上文案质量。`,
+        'check',
+        modelId,
+        apiKey,
+        baseUrl
+      ) as CheckerResult;
+
+      setStepState(prev => ({
+        ...prev,
+        step: 5,
+        selectedTopic: topicIndex,
+        result,
+        checkerResult: checkResult,
+        optimizeCount: 0,
+        step4Phase: 'done',
+      }));
     } catch (e) {
       setError(e instanceof Error ? e.message : '请求失败');
+      setStepState(prev => ({ ...prev, step4Phase: undefined }));
     } finally {
       setLoading(false);
     }
-  }, [currentTrack, topic]);
+  }, [currentTrack, topic, modelId, apiKey, baseUrl]);
+
+  const runOptimize = useCallback(async () => {
+    if (!currentTrack || !stepState.result || !stepState.checkerResult) return;
+    if ((stepState.optimizeCount || 0) >= 2) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const memoryResult = buildMemoryPrompt(currentTrack.memories || [], topic);
+      const selected = stepState.topics?.[stepState.selectedTopic!];
+      if (!selected) return;
+
+      // Re-generate with checker feedback
+      setStepState(prev => ({ ...prev, step4Phase: 'generating' }));
+      const data = await callGenerate(
+        buildOptimizePrompt(
+          currentTrack,
+          stepState.result!.copytext,
+          stepState.result!.titles,
+          stepState.checkerResult!.overallSuggestion + '\n' + stepState.checkerResult!.scores.filter(s => s.suggestion).map(s => `${s.dimension}：${s.suggestion}`).join('\n'),
+          stepState.topicAnalysis || '',
+          selected.executionPlan,
+          moduleSelectionsRef.current,
+          memoryResult.prompt,
+        ),
+        `请根据质量审核反馈优化文案。`,
+        'step4',
+        modelId,
+        apiKey,
+        baseUrl
+      );
+      const newResult: GenerationResult = {
+        copytext: data.copytext || '',
+        titles: data.titles || [],
+        music: data.music || [],
+        emotionCurve: data.emotionCurve,
+        shootingGuide: data.shootingGuide,
+        structure: data.structure,
+        memory_entries: data.memory_entries as AIMemoryExtraction[] | undefined,
+      };
+
+      // Re-check
+      setStepState(prev => ({ ...prev, step4Phase: 'checking', result: newResult }));
+      const checkResult = await callGenerate(
+        buildCheckerPrompt(currentTrack, newResult.copytext, newResult.titles, stepState.topicAnalysis || '', selected.executionPlan),
+        `请评审以上文案质量。`,
+        'check',
+        modelId,
+        apiKey,
+        baseUrl
+      ) as CheckerResult;
+
+      setStepState(prev => ({
+        ...prev,
+        result: newResult,
+        checkerResult: checkResult,
+        optimizeCount: (prev.optimizeCount || 0) + 1,
+        step4Phase: 'done',
+      }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '优化失败');
+      setStepState(prev => ({ ...prev, step4Phase: 'done' }));
+    } finally {
+      setLoading(false);
+    }
+  }, [currentTrack, topic, stepState, modelId, apiKey, baseUrl]);
 
   const runPolish = useCallback(async (instruction: string) => {
     if (!currentTrack || !stepState.result) return;
@@ -343,14 +452,29 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
           <div style={{ padding: '12px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 0', color: '#8C8276', fontSize: 13 }}>
               <div className="tw-spinner" />
-              正在生成完整文案...
+              {stepState.step4Phase === 'planning' && '正在分析选题，选择知识模块...'}
+              {stepState.step4Phase === 'generating' && '正在生成完整文案...'}
+              {stepState.step4Phase === 'checking' && '正在进行质量自检...'}
+              {!stepState.step4Phase && '正在生成完整文案...'}
             </div>
           </div>
         </div>
       )}
 
+      {/* Quality Score Card (shown when checker result exists) */}
+      {stepState.step === 5 && stepState.checkerResult && (
+        <QualityScoreCard
+          result={stepState.checkerResult}
+          loading={loading && stepState.step4Phase !== 'done' && stepState.step4Phase !== undefined}
+          optimizeCount={stepState.optimizeCount || 0}
+          maxOptimize={2}
+          onAccept={() => setStepState(prev => ({ ...prev, checkerResult: undefined }))}
+          onOptimize={runOptimize}
+        />
+      )}
+
       {/* Step 5 */}
-      {stepState.step === 5 && stepState.result && (
+      {stepState.step === 5 && stepState.result && !stepState.checkerResult && (
         <Step5PolishConfirm
           result={stepState.result}
           loading={loading}
