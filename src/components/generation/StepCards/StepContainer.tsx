@@ -68,7 +68,7 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
   const apiKey = apiKeys[modelId] || '';
   const baseUrls = useSettingsStore(s => s.baseUrls);
   const baseUrl = baseUrls[modelId] || '';
-  const mergeAIMemoryEntries = useTrackStore(s => s.mergeAIMemoryEntries);
+  const mem0ApiKey = useSettingsStore(s => s.mem0ApiKey);
   const { user } = useAuth();
   const incrementCount = useTrackStore(s => s.incrementCount);
   const runDecay = useTrackStore(s => s.runDecay);
@@ -104,7 +104,7 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
     try {
       const [searchContext, memoryResult] = await Promise.all([
         fetchSearchContext(topic),
-        Promise.resolve(buildMemoryPrompt(currentTrack.memories || [], topic)),
+        buildMemoryPrompt(topic + ' ' + (currentTrack.desc || ''), user?.id || '', currentTrack.id, mem0ApiKey),
       ]);
       searchContextRef.current = searchContext;
       usedMemoryIdsRef.current = memoryResult.usedIds;
@@ -121,7 +121,7 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
     } finally {
       setLoading(false);
     }
-  }, [currentTrack, topic, fetchSearchContext]);
+  }, [currentTrack, topic, fetchSearchContext, user, mem0ApiKey]);
 
   const runStep3 = useCallback(async (
     strategy: StrategyType, subDirection: string, topicAnalysis: string,
@@ -131,7 +131,7 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
     setError(null);
     try {
       const strategyName = STRATEGY_META[strategy].name;
-      const memoryResult = buildMemoryPrompt(currentTrack.memories || [], topic);
+      const memoryResult = await buildMemoryPrompt(topic + ' ' + (currentTrack.desc || ''), user?.id || '', currentTrack.id, mem0ApiKey);
       usedMemoryIdsRef.current = memoryResult.usedIds;
       const data = await callGenerate(
         buildStep3Prompt(currentTrack, strategyName, subDirection, topicAnalysis, memoryResult.prompt, searchContextRef.current),
@@ -150,7 +150,7 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
     } finally {
       setLoading(false);
     }
-  }, [currentTrack, topic]);
+  }, [currentTrack, topic, user, mem0ApiKey]);
 
   const runStep4 = useCallback(async (
     topicIndex: number, strategy: StrategyType, topicAnalysis: string, topics: TopicOption[],
@@ -159,7 +159,7 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
     setLoading(true);
     setError(null);
     const selected = topics[topicIndex];
-    const memoryResult = buildMemoryPrompt(currentTrack.memories || [], topic);
+    const memoryResult = await buildMemoryPrompt(topic + ' ' + (currentTrack.desc || ''), user?.id || '', currentTrack.id, mem0ApiKey);
     usedMemoryIdsRef.current = memoryResult.usedIds;
     const strategyName = STRATEGY_META[strategy].name;
 
@@ -226,7 +226,7 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
     } finally {
       setLoading(false);
     }
-  }, [currentTrack, topic, modelId, apiKey, baseUrl]);
+  }, [currentTrack, topic, modelId, apiKey, baseUrl, user, mem0ApiKey]);
 
   const runOptimize = useCallback(async () => {
     if (!currentTrack || !stepState.result || !stepState.checkerResult) return;
@@ -234,7 +234,7 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
     setLoading(true);
     setError(null);
     try {
-      const memoryResult = buildMemoryPrompt(currentTrack.memories || [], topic);
+      const memoryResult = await buildMemoryPrompt(topic + ' ' + (currentTrack.desc || ''), user?.id || '', currentTrack.id, mem0ApiKey);
       const selected = stepState.topics?.[stepState.selectedTopic!];
       if (!selected) return;
 
@@ -291,14 +291,14 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
     } finally {
       setLoading(false);
     }
-  }, [currentTrack, topic, stepState, modelId, apiKey, baseUrl]);
+  }, [currentTrack, topic, stepState, modelId, apiKey, baseUrl, user, mem0ApiKey]);
 
   const runPolish = useCallback(async (instruction: string) => {
     if (!currentTrack || !stepState.result) return;
     setLoading(true);
     setError(null);
     try {
-      const memoryResult = buildMemoryPrompt(currentTrack.memories || [], topic);
+      const memoryResult = await buildMemoryPrompt(topic + ' ' + (currentTrack.desc || ''), user?.id || '', currentTrack.id, mem0ApiKey);
       const data = await callGenerate(
         buildPolishPrompt(currentTrack, stepState.result.copytext, stepState.result.titles, instruction, memoryResult.prompt),
         `润色要求：${instruction}`,
@@ -321,17 +321,28 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
     } finally {
       setLoading(false);
     }
-  }, [currentTrack, stepState.result, topic]);
+  }, [currentTrack, stepState.result, topic, user, mem0ApiKey]);
 
   const handleConfirm = useCallback((finalResult: GenerationResult) => {
     if (!currentTrack) return;
-    if (finalResult.memory_entries && finalResult.memory_entries.length > 0) {
-      mergeAIMemoryEntries(currentTrack.id, finalResult.memory_entries, user!.id);
+    if (finalResult.memory_entries && finalResult.memory_entries.length > 0 && mem0ApiKey) {
+      // Fire-and-forget: add AI-extracted memories to mem0
+      import('@/lib/mem0-client').then(({ addMemory }) => {
+        for (const entry of finalResult.memory_entries!) {
+          addMemory(
+            [{ role: 'assistant', content: entry.content }],
+            user!.id,
+            currentTrack.id,
+            mem0ApiKey,
+            { type: entry.type, source: 'ai', confidence: 0.4 },
+          ).catch(console.warn);
+        }
+      });
     }
     runDecay(currentTrack.id);
     incrementCount(currentTrack.id);
     onComplete(finalResult, topic, usedMemoryIdsRef.current, stepState.strategy);
-  }, [currentTrack, topic, mergeAIMemoryEntries, runDecay, incrementCount, onComplete, stepState.strategy]);
+  }, [currentTrack, topic, mem0ApiKey, runDecay, incrementCount, onComplete, stepState.strategy]);
 
   useEffect(() => {
     if (!initialized.current) {
