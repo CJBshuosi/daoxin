@@ -26,10 +26,14 @@ const schemas = {
     })).describe('3个不同角度的选题方案'),
   }),
 
-  // Step 4: 完整文案 + 拍摄指导
-  step4: z.object({
+  // CopyWriter: only copytext + titles
+  copywrite: z.object({
     copytext: z.string().describe('完整文案正文，200-400字，换行用\\n'),
     titles: z.array(z.string()).describe('3个爆款标题'),
+  }),
+
+  // MetadataGenerator: analysis artifacts from copytext
+  metadata: z.object({
     emotionCurve: z.array(z.object({
       section: z.string().describe('段落标识，如：开头/展开/高潮/结尾'),
       emotion: z.string().describe('情绪标注，如：好奇、共鸣、惊讶、感动'),
@@ -43,12 +47,18 @@ const schemas = {
         transitions: z.string().describe('转场方式建议'),
       })
     ).describe('拍摄指导'),
-    structure: z.string().describe('使用的内容结构模型名称，如SCQA、故事弧线'),
+    structure: z.string().describe('使用的内容结构模型名称'),
     music: z.array(z.string()).describe('3个BGM风格推荐'),
     memory_entries: z.array(z.object({
       type: z.enum(['style', 'content', 'avoid', 'pattern']).describe('记忆类型'),
       content: z.string().describe('一句话规则描述'),
-    })).describe('从本次生成中提取的创作规律，2-4条'),
+    })).describe('从本次文案中提取的创作规律，2-4条'),
+  }),
+
+  // Step 4 optimize: same output as copywrite (re-generate with feedback)
+  step4: z.object({
+    copytext: z.string().describe('完整文案正文，200-400字，换行用\\n'),
+    titles: z.array(z.string()).describe('3个爆款标题'),
   }),
 
   // Step 5: 润色
@@ -56,15 +66,6 @@ const schemas = {
     copytext: z.string().describe('润色后的正文内容，换行用\\n'),
     titles: z.array(z.string()).describe('润色后的3个爆款标题'),
     music: z.array(z.string()).describe('3个BGM风格推荐'),
-  }),
-
-  // Phase 2: Planner — selects which knowledge modules to load
-  plan: z.object({
-    modules: z.array(z.object({
-      id: z.string().describe('模块ID，如 topic-methodology, emotion-triggers'),
-      loadExamples: z.boolean().describe('是否加载案例层'),
-      reason: z.string().describe('选择该模块的理由'),
-    })).describe('需要加载的知识模块列表'),
   }),
 
   // Phase 2: Checker — quality scoring on 7 dimensions

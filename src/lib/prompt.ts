@@ -2,15 +2,14 @@ import type { Track } from '@/types';
 import {
   TOPIC_RULES,
   POSITION_RULES,
-  OUTLINE_RULES, OUTLINE_EXAMPLES,
+  OUTLINE_RULES,
   WRITING_RULES,
   INFO_RULES,
   EMOTION_RULES, EMOTION_EXAMPLES,
   ECOMMERCE_RULES,
   SAFETY_RULES,
-  loadModules,
+  getFewShotExamples,
 } from './sub_knowledge';
-import type { ModuleId } from './sub_knowledge';
 
 /**
  * 道心文案 Prompt 系统 V3
@@ -41,92 +40,102 @@ const STRATEGY_FRAMEWORK = `【道心四法 · 内容策略】
 3. 启思·价值 — "学到了"：实用价值驱动收藏（子方向：干货输出/痛点解决/经验复盘/对比测评）
 4. 破局·创意 — "没想到还能这样"：新奇视角驱动破圈（子方向：跨界联想/极端假设/逆向思维/视角转换）`;
 
-// ===== Phase 2: Planner =====
+// ===== CopyWriter: 专注正文 + 标题 =====
 
-export function buildPlannerPrompt(
-  track: Track,
-  topicAnalysis: string,
-  strategy: string,
-  executionPlan: string,
-  memoryPrompt?: string,
-) {
-  return `你是一个内容策划分析师。根据以下选题信息，从知识模块库中选择最相关的模块用于文案生成。
-
-【赛道】${track.name}${track.desc ? `（${track.desc}）` : ''}
-${buildProfilePrompt(track)}
-【选题分析】${topicAnalysis}
-【策略法】${strategy}
-【执行思路】${executionPlan}
-${memoryPrompt || ''}
-
-可选知识模块：
-- topic-methodology: 选题方法论（8种选题类型、需求×方案模型、选题验证标准）
-- positioning: 定位与竞争优势（五维度定位、竞争力六字真言、张小阳画像法）
-- outline-structure: 大纲架构（清单式vs发展式、四种描述对象、大纲先行原则）
-- writing-fundamentals: 文字语言基本功（抽象→直观、5种写作手法、口语化）
-- info-efficiency: 信息效率（信息密度公式、6种时间路标、结构可视化）
-- emotion-triggers: 情绪刺点（行为-情绪阈值、点赞六要素、评论引导三阶段）
-- ecommerce-templates: 带货文案模板（4大模板、带货禁忌）— 仅带货相关内容需要
-- content-safety: 内容安全（安全红线、立场边界、弱势群体处理）
-
-选择原则：
-1. 文案生成必选：outline-structure, writing-fundamentals, info-efficiency, emotion-triggers（这4个是基础模块）
-2. 根据选题类型决定是否加载 topic-methodology（选题创新度不够时加载）
-3. 带货相关内容加载 ecommerce-templates
-4. 涉及敏感话题时加载 content-safety
-5. 案例层(loadExamples=true)仅在该维度对当前选题特别重要时加载，避免prompt过长
-
-请返回需要加载的模块列表。`;
-}
-
-// ===== Phase 2: Dynamic Step 4 (modules selected by Planner) =====
-
-export function buildStep4DynamicPrompt(
+export function buildCopyWriterPrompt(
   track: Track,
   selectedTopic: string,
   selectedHook: string,
   executionPlan: string,
   topicAnalysis: string,
-  moduleSelections: { id: ModuleId; includeExamples?: boolean }[],
   memoryPrompt?: string,
   searchContext?: string,
 ) {
   const refs = track.refAccounts.length ? track.refAccounts.join('、') : '无指定';
-  const dynamicKnowledge = loadModules(moduleSelections);
+  const examples = getFewShotExamples(track.fewShot);
+  const fewShotBlock = examples.map((ex, i) => `---范文${i + 1}---\n${ex}`).join('\n\n');
 
-  return `你是一个顶级短视频文案生成专家，专注于「${track.name}」垂直赛道。${track.desc ? `（${track.desc}）` : ''}
+  return `你是一个有十年经验的短视频口播文案创作者。你写的稿子最大特点是：像朋友坐在对面聊天，有故事、有画面、有节奏。你从不写"教科书式"的内容。
+
+你专注于「${track.name}」垂直赛道。${track.desc ? `（${track.desc}）` : ''}
 ${buildProfilePrompt(track)}
 【对标账号风格参考】${refs}
 ${memoryPrompt || ''}
-${track.fewShot ? `\n【参考风格文案】请仔细学习以下文案的节奏、用词，模仿其风格：\n---\n${track.fewShot}\n---\n` : ''}
 ${searchContext ? `\n【实时资讯参考】\n${searchContext}\n` : ''}
+
+【风格范本】以下是优秀文案示例，请仔细体会它们的节奏、用词和故事感，用类似的风格写作：
+
+${fewShotBlock}
+
+${WRITING_RULES}
+
+${OUTLINE_RULES}
+
 【选题分析】${topicAnalysis}
 【已选定的选题】${selectedTopic}
 【开头钩子】${selectedHook}
 【执行思路】${executionPlan}
 
-${dynamicKnowledge}
+【禁止以下写法】
+❌ "很多人不知道，其实..."——模板化开头
+❌ "今天给大家分享一个..."——说教感
+❌ "首先...其次...最后..."——论文结构
+❌ 连续使用排比句超过3组——变成朗诵
+❌ 每段都以感叹号结尾——用力过猛
+❌ "建议收藏""一定要看完"——硬塞互动
 
 【必须避免的词语和表达】${track.banned ? track.banned + '，以及绝对化医疗表述' : '绝对化表述、医疗建议、政治敏感词'}
 
-【文案生成要求】
-- 必须先确定大纲结构（清单式or发展式），再逐段填充
-- 用直观语言，让观众"看得见"画面，禁止抽象抒情
-- 信息密度：确保时间路标可见，观众能感知到信息推进
-- 情绪刺点：独立预埋点赞点（≥4个）、评论引导点（≥1个）、关注触发点（≥1个）
-- 口语化，朗读时要顺口
+请生成：
+1. 完整文案正文（200-400字）
+2. 3个标题
+
+仅此两项，不要输出其他任何内容。`;
+}
+
+// ===== MetadataGenerator: 分析型附件生成 =====
+
+export function buildMetadataPrompt(
+  track: Track,
+  copytext: string,
+  titles: string[],
+  executionPlan: string,
+  topicAnalysis: string,
+  memoryPrompt?: string,
+) {
+  const isDongxin = /动心|共鸣|情感|故事/.test(executionPlan);
+  const isEcommerce = /带货|电商|卖货|种草|推广/.test(track.desc || '') || /带货|电商/.test(track.name);
+
+  return `你是一个短视频内容分析专家。请对以下文案进行专业分析，生成配套的制作指导信息。
+
+【赛道】${track.name}${track.desc ? `（${track.desc}）` : ''}
+${buildProfilePrompt(track)}
+${memoryPrompt || ''}
+【选题分析】${topicAnalysis}
+【执行思路】${executionPlan}
+
+【文案正文】
+${copytext}
+
+【标题】
+${titles.map((t, i) => `${i + 1}. ${t}`).join('\n')}
+
+${EMOTION_RULES}
+
+${isDongxin ? EMOTION_EXAMPLES : ''}
+
+${INFO_RULES}
+
+${isEcommerce ? ECOMMERCE_RULES : ''}
 
 请生成以下内容：
-
-1. 完整文案正文（200-400字，口语化，节奏感强）
-2. 3个爆款标题
-3. 情绪曲线标注（标注文案中每段的情绪变化和刺激点类型）
-4. 拍摄指导（镜头建议、画面风格、转场方式）
-5. 3个BGM风格推荐
-6. 建议的内容结构模型名称（清单式/发展式 + 具体变体）
+1. 情绪曲线标注（标注文案中每段的情绪变化和刺激点类型）
+2. 拍摄指导（镜头建议、画面风格、转场方式）
+3. 3个BGM风格推荐
+4. 建议的内容结构模型名称（清单式/发展式 + 具体变体）
 
 【记忆提取要求】
-基于本次生成，提取 2-4 条可复用的创作规律：
+基于本次文案，提取 2-4 条可复用的创作规律：
 - style: 写作风格发现
 - content: 内容偏好发现
 - avoid: 需要避免的
@@ -206,20 +215,25 @@ export function buildOptimizePrompt(
   checkerSuggestion: string,
   topicAnalysis: string,
   executionPlan: string,
-  moduleSelections: { id: ModuleId; includeExamples?: boolean }[],
   memoryPrompt?: string,
 ) {
   const refs = track.refAccounts.length ? track.refAccounts.join('、') : '无指定';
-  const dynamicKnowledge = loadModules(moduleSelections);
+  const examples = getFewShotExamples(track.fewShot);
+  const fewShotBlock = examples.map((ex, i) => `---范文${i + 1}---\n${ex}`).join('\n\n');
 
-  return `你是一个顶级短视频文案优化专家，专注于「${track.name}」垂直赛道。${track.desc ? `（${track.desc}）` : ''}
+  return `你是一个有十年经验的短视频口播文案创作者。你写的稿子最大特点是：像朋友坐在对面聊天，有故事、有画面、有节奏。
+
+你专注于「${track.name}」垂直赛道。${track.desc ? `（${track.desc}）` : ''}
 ${buildProfilePrompt(track)}
 【对标账号风格参考】${refs}
 ${memoryPrompt || ''}
 【选题分析】${topicAnalysis}
 【执行思路】${executionPlan}
 
-${dynamicKnowledge}
+【风格范本】
+${fewShotBlock}
+
+${WRITING_RULES}
 
 【当前文案初稿】
 ${currentCopytext}
@@ -238,20 +252,9 @@ ${checkerSuggestion}
 3. 不要为了改而改——好的部分保留
 4. 用直观语言，口语化，朗读时顺口
 
-请生成优化后的完整内容：
+请生成优化后的内容：
 1. 完整文案正文（200-400字）
-2. 3个爆款标题
-3. 情绪曲线标注
-4. 拍摄指导
-5. 3个BGM风格推荐
-6. 建议的内容结构模型名称
-
-【记忆提取要求】
-基于本次优化，提取 2-4 条可复用的创作规律：
-- style: 写作风格发现
-- content: 内容偏好发现
-- avoid: 需要避免的
-- pattern: 成功模式`;
+2. 3个爆款标题`;
 }
 
 // ===== Step 1: 选题分析 + 策略推荐 =====
@@ -317,70 +320,6 @@ ${isEcommerce ? ECOMMERCE_RULES : ''}
 4. 使用的钩子类型和结构类型
 
 【必须避免】${track.banned || '绝对化表述、医疗建议、政治敏感词'}`;
-}
-
-// ===== Step 4: 完整文案 + 拍摄指导 =====
-
-export function buildStep4Prompt(
-  track: Track,
-  selectedTopic: string,
-  selectedHook: string,
-  executionPlan: string,
-  topicAnalysis: string,
-  memoryPrompt?: string,
-  searchContext?: string,
-) {
-  const refs = track.refAccounts.length ? track.refAccounts.join('、') : '无指定';
-  const isDongxin = /动心|共鸣|情感|故事/.test(executionPlan);
-  const isEcommerce = /带货|电商|卖货|种草|推广/.test(track.desc || '') || /带货|电商/.test(track.name);
-
-  return `你是一个顶级短视频文案生成专家，专注于「${track.name}」垂直赛道。${track.desc ? `（${track.desc}）` : ''}
-${buildProfilePrompt(track)}
-【对标账号风格参考】${refs}
-${memoryPrompt || ''}
-${track.fewShot ? `\n【参考风格文案】请仔细学习以下文案的节奏、用词，模仿其风格：\n---\n${track.fewShot}\n---\n` : ''}
-${searchContext ? `\n【实时资讯参考】\n${searchContext}\n` : ''}
-【选题分析】${topicAnalysis}
-【已选定的选题】${selectedTopic}
-【开头钩子】${selectedHook}
-【执行思路】${executionPlan}
-
-${OUTLINE_RULES}
-
-${WRITING_RULES}
-
-${INFO_RULES}
-
-${EMOTION_RULES}
-
-${isDongxin ? EMOTION_EXAMPLES : ''}
-
-${isEcommerce ? ECOMMERCE_RULES : ''}
-
-【必须避免的词语和表达】${track.banned ? track.banned + '，以及绝对化医疗表述' : '绝对化表述、医疗建议、政治敏感词'}
-
-【文案生成要求】
-- 必须先确定大纲结构（清单式or发展式），再逐段填充
-- 用直观语言，让观众"看得见"画面，禁止抽象抒情
-- 信息密度：确保时间路标可见，观众能感知到信息推进
-- 情绪刺点：独立预埋点赞点（≥4个）、评论引导点（≥1个）、关注触发点（≥1个）
-- 口语化，朗读时要顺口
-
-请生成以下内容：
-
-1. 完整文案正文（200-400字，口语化，节奏感强）
-2. 3个爆款标题
-3. 情绪曲线标注（标注文案中每段的情绪变化和刺激点类型）
-4. 拍摄指导（镜头建议、画面风格、转场方式）
-5. 3个BGM风格推荐
-6. 建议的内容结构模型名称（清单式/发展式 + 具体变体）
-
-【记忆提取要求】
-基于本次生成，提取 2-4 条可复用的创作规律：
-- style: 写作风格发现
-- content: 内容偏好发现
-- avoid: 需要避免的
-- pattern: 成功模式`;
 }
 
 // ===== Step 5: 润色 =====
