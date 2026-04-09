@@ -110,6 +110,21 @@ export interface CheckerResult {
   pass: boolean;
 }
 
+// ===== mem0 Memory (Phase 3) =====
+
+export interface Mem0Memory {
+  id: string;
+  memory: string;
+  metadata: {
+    type?: MemoryType;
+    source?: 'ai' | 'user' | 'system';
+    confidence?: number;
+    hit_count?: number;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
 // ===== History =====
 
 export interface HistoryItem {
