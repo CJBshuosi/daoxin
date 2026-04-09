@@ -57,6 +57,28 @@ const schemas = {
     titles: z.array(z.string()).describe('润色后的3个爆款标题'),
     music: z.array(z.string()).describe('3个BGM风格推荐'),
   }),
+
+  // Phase 2: Planner — selects which knowledge modules to load
+  plan: z.object({
+    modules: z.array(z.object({
+      id: z.string().describe('模块ID，如 topic-methodology, emotion-triggers'),
+      loadExamples: z.boolean().describe('是否加载案例层'),
+      reason: z.string().describe('选择该模块的理由'),
+    })).describe('需要加载的知识模块列表'),
+  }),
+
+  // Phase 2: Checker — quality scoring on 7 dimensions
+  check: z.object({
+    scores: z.array(z.object({
+      dimension: z.string().describe('评分维度名称'),
+      score: z.number().describe('1-10分'),
+      comment: z.string().describe('评价说明'),
+      suggestion: z.string().optional().describe('改进建议'),
+    })).describe('7项评分'),
+    totalScore: z.number().describe('总分（满分70）'),
+    overallSuggestion: z.string().describe('整体修改建议'),
+    pass: z.boolean().describe('总分>=49为通过（7分及格线×7维度）'),
+  }),
 };
 
 export const POST = withApiGuard(async (req) => {
