@@ -1,21 +1,37 @@
 'use client';
 
-import type { MemoryEntry } from '@/types';
+import type { MemoryEntry, Mem0Memory } from '@/types';
 import { MEMORY_TYPE_META } from '@/types';
+
+function normalizeMem0(mem: Mem0Memory): { id: string; type: string; content: string; confidence: number; source: string } {
+  return {
+    id: mem.id,
+    type: mem.metadata?.type || 'content',
+    content: mem.memory,
+    confidence: mem.metadata?.confidence ?? 0.5,
+    source: mem.metadata?.source || 'ai',
+  };
+}
 
 interface MemoryDisplayProps {
   memories?: MemoryEntry[];
+  mem0Memories?: Mem0Memory[];
   trackName?: string;
   onEdit: () => void;
 }
 
-export default function MemoryDisplay({ memories, trackName, onEdit }: MemoryDisplayProps) {
-  const sorted = (memories || [])
+export default function MemoryDisplay({ memories, mem0Memories, trackName, onEdit }: MemoryDisplayProps) {
+  const effectiveMemories: { id: string; type: string; content: string; confidence: number; source: string }[] =
+    mem0Memories && mem0Memories.length > 0
+      ? mem0Memories.map(normalizeMem0)
+      : (memories || []);
+
+  const sorted = effectiveMemories
     .filter(m => m.confidence >= 0.2)
     .sort((a, b) => b.confidence - a.confidence)
     .slice(0, 8);
 
-  const grouped: Partial<Record<string, MemoryEntry[]>> = {};
+  const grouped: Partial<Record<string, typeof sorted>> = {};
   for (const m of sorted) {
     (grouped[m.type] ||= []).push(m);
   }

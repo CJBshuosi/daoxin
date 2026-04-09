@@ -3,19 +3,34 @@
 import { useState } from 'react';
 import { useTrackStore } from '@/store/useTrackStore';
 import { useAuth } from '@/hooks/useAuth';
-import type { MemoryEntry, MemoryType } from '@/types';
+import type { MemoryEntry, MemoryType, Mem0Memory } from '@/types';
 import { MEMORY_TYPE_META } from '@/types';
+
+function normalizeMem0(mem: Mem0Memory, trackId: string): MemoryEntry {
+  return {
+    id: mem.id,
+    trackId,
+    type: (mem.metadata?.type || 'content') as MemoryType,
+    content: mem.memory,
+    confidence: mem.metadata?.confidence ?? 0.5,
+    source: mem.metadata?.source || 'ai',
+    createdAt: new Date(mem.created_at).getTime(),
+    updatedAt: new Date(mem.updated_at).getTime(),
+    hitCount: mem.metadata?.hit_count ?? 0,
+  };
+}
 
 interface MemoryEditModalProps {
   open: boolean;
   trackId: string;
   memories: MemoryEntry[];
+  mem0Memories?: Mem0Memory[];
   onClose: () => void;
 }
 
 const TYPES: MemoryType[] = ['style', 'content', 'avoid', 'pattern'];
 
-export default function MemoryEditModal({ open, trackId, memories, onClose }: MemoryEditModalProps) {
+export default function MemoryEditModal({ open, trackId, memories, mem0Memories, onClose }: MemoryEditModalProps) {
   const addMemoryEntry = useTrackStore(s => s.addMemoryEntry);
   const updateMemoryEntry = useTrackStore(s => s.updateMemoryEntry);
   const deleteMemoryEntry = useTrackStore(s => s.deleteMemoryEntry);
@@ -31,7 +46,12 @@ export default function MemoryEditModal({ open, trackId, memories, onClose }: Me
 
   if (!open) return null;
 
-  const sorted = [...memories].sort((a, b) => b.confidence - a.confidence);
+  const effectiveMemories: MemoryEntry[] =
+    mem0Memories && mem0Memories.length > 0
+      ? mem0Memories.map(m => normalizeMem0(m, trackId))
+      : memories;
+
+  const sorted = [...effectiveMemories].sort((a, b) => b.confidence - a.confidence);
   const grouped: Partial<Record<MemoryType, MemoryEntry[]>> = {};
   for (const m of sorted) {
     (grouped[m.type] ||= []).push(m);
@@ -85,7 +105,7 @@ export default function MemoryEditModal({ open, trackId, memories, onClose }: Me
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 600 }}>
-            记忆管理 ({memories.length} 条)
+            记忆管理 ({effectiveMemories.length} 条)
           </span>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => setAddMode(true)} style={{ ...btnStyle, background: '#E85D3B', color: 'white', border: 'none' }}>
@@ -207,7 +227,7 @@ export default function MemoryEditModal({ open, trackId, memories, onClose }: Me
             );
           })}
 
-          {memories.length === 0 && (
+          {effectiveMemories.length === 0 && (
             <div style={{ textAlign: 'center', padding: 32, color: '#C8BFA9', fontSize: 13 }}>
               暂无记忆，点击"添加记忆"手动创建
             </div>
