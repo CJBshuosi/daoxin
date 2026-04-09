@@ -84,6 +84,32 @@ export interface GenerationResult {
   memory_entries?: AIMemoryExtraction[];
 }
 
+// ===== Agent Pipeline (Phase 2) =====
+
+export interface PlannerModuleSelection {
+  id: string;
+  loadExamples: boolean;
+  reason: string;
+}
+
+export interface PlannerResult {
+  modules: PlannerModuleSelection[];
+}
+
+export interface QualityScore {
+  dimension: string;
+  score: number;
+  comment: string;
+  suggestion?: string;
+}
+
+export interface CheckerResult {
+  scores: QualityScore[];
+  totalScore: number;
+  overallSuggestion: string;
+  pass: boolean;
+}
+
 // ===== History =====
 
 export interface HistoryItem {
@@ -139,4 +165,8 @@ export interface StepState {
   topics?: TopicOption[];
   selectedTopic?: number;
   result?: GenerationResult;
+  // Phase 2: Agent pipeline state
+  checkerResult?: CheckerResult;
+  optimizeCount?: number;
+  step4Phase?: 'planning' | 'generating' | 'checking' | 'done';
 }
