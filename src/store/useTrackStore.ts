@@ -40,9 +40,6 @@ interface TrackStore {
   getCurrentTrack: () => Track | undefined;
   incrementCount: (id: string) => void;
 
-  // Legacy memory
-  appendMemory: (id: string, text: string) => void;
-
   // Structured memory actions
   seedKnowledge: (trackId: string, knowledgeId: string, userId: string) => void;
   seedCustomKnowledge: (trackId: string, seeds: { type: MemoryType; content: string; confidence: number }[], userId: string) => void;
@@ -74,12 +71,6 @@ export const useTrackStore = create<TrackStore>()(
         .eq('user_id', userId)
         .order('created_at', { ascending: true });
 
-      // Fetch memories
-      const { data: dbMemories } = await supabase
-        .from('memories')
-        .select('*')
-        .eq('user_id', userId);
-
       // Fetch history
       const { data: dbHistory } = await supabase
         .from('history_items')
@@ -87,25 +78,6 @@ export const useTrackStore = create<TrackStore>()(
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(MAX_HISTORY);
-
-      // Assemble Track + memories
-      const memoriesByTrack = new Map<string, MemoryEntry[]>();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const m of (dbMemories || []) as any[]) {
-        const list = memoriesByTrack.get(m.track_id) || [];
-        list.push({
-          id: m.id,
-          trackId: m.track_id,
-          type: m.type as MemoryType,
-          content: m.content,
-          source: m.source as 'ai' | 'user' | 'system',
-          confidence: m.confidence,
-          hitCount: m.hit_count,
-          createdAt: new Date(m.created_at).getTime(),
-          updatedAt: new Date(m.updated_at).getTime(),
-        });
-        memoriesByTrack.set(m.track_id, list);
-      }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tracks: Track[] = ((dbTracks || []) as any[]).map((t: any) => ({
@@ -116,7 +88,7 @@ export const useTrackStore = create<TrackStore>()(
         banned: t.banned,
         fewShot: t.few_shot,
         memory: '',
-        memories: memoriesByTrack.get(t.id) || [],
+        memories: [],
         knowledgeId: t.knowledge_id || undefined,
         knowledgeSeeded: t.knowledge_seeded,
         profile: (t.target_audience || t.persona || t.product || t.content_goal)
@@ -274,31 +246,6 @@ export const useTrackStore = create<TrackStore>()(
       }
     },
 
-    appendMemory: (id, text) => {
-      const now = Date.now();
-      const entryId = genMemoryId();
-      const entry: MemoryEntry = {
-        id: entryId, trackId: id, type: 'content', content: text,
-        source: 'ai', confidence: 0.4, hitCount: 0, createdAt: now, updatedAt: now,
-      };
-
-      set(s => ({
-        tracks: s.tracks.map(t => {
-          if (t.id !== id) return t;
-          return { ...t, memory: t.memory ? t.memory + '\n' + text : text, memories: [...(t.memories || []), entry] };
-        }),
-      }));
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      sb().auth.getUser().then(({ data: { user } }: { data: { user: any } }) => {
-        if (!user) return;
-        sb().from('memories').insert({
-          id: entryId, track_id: id, user_id: user.id,
-          type: 'content', content: text, source: 'ai', confidence: 0.4, hit_count: 0,
-        }).then(() => {});
-      });
-    },
-
     seedKnowledge: (trackId, knowledgeId, userId) => {
       const builtin = getBuiltinTrack(knowledgeId);
       if (!builtin) return;
@@ -317,11 +264,6 @@ export const useTrackStore = create<TrackStore>()(
 
       // Write to Supabase
       sb().from('tracks').update({ knowledge_id: knowledgeId, knowledge_seeded: true }).eq('id', trackId).then(() => {});
-      const rows = seedEntries.map(e => ({
-        id: e.id, track_id: trackId, user_id: userId,
-        type: e.type, content: e.content, source: e.source, confidence: e.confidence, hit_count: 0,
-      }));
-      sb().from('memories').insert(rows).then(() => {});
 
       // Fire-and-forget to mem0
       const mem0ApiKey = useSettingsStore.getState().mem0ApiKey;
@@ -353,11 +295,6 @@ export const useTrackStore = create<TrackStore>()(
       }));
 
       sb().from('tracks').update({ knowledge_id: 'custom', knowledge_seeded: true }).eq('id', trackId).then(() => {});
-      const rows = seedEntries.map(e => ({
-        id: e.id, track_id: trackId, user_id: userId,
-        type: e.type, content: e.content, source: e.source, confidence: e.confidence, hit_count: 0,
-      }));
-      sb().from('memories').insert(rows).then(() => {});
 
       // Fire-and-forget to mem0
       const mem0ApiKey = useSettingsStore.getState().mem0ApiKey;
@@ -386,11 +323,6 @@ export const useTrackStore = create<TrackStore>()(
         tracks: s.tracks.map(t => t.id === trackId ? { ...t, memories: [...(t.memories || []), entry] } : t),
       }));
 
-      sb().from('memories').insert({
-        id: entryId, track_id: trackId, user_id: userId,
-        type, content, source, confidence: entry.confidence, hit_count: 0,
-      }).then(() => {});
-
       // Fire-and-forget to mem0
       const mem0ApiKey = useSettingsStore.getState().mem0ApiKey;
       if (mem0ApiKey) {
@@ -412,12 +344,6 @@ export const useTrackStore = create<TrackStore>()(
         }),
       }));
 
-      const dbUpdate: Record<string, unknown> = { updated_at: new Date().toISOString() };
-      if (updates.content !== undefined) dbUpdate.content = updates.content;
-      if (updates.type !== undefined) dbUpdate.type = updates.type;
-      if (updates.confidence !== undefined) dbUpdate.confidence = updates.confidence;
-      sb().from('memories').update(dbUpdate).eq('id', memoryId).then(() => {});
-
       // Fire-and-forget to mem0
       const mem0ApiKey = useSettingsStore.getState().mem0ApiKey;
       if (mem0ApiKey) {
@@ -429,7 +355,6 @@ export const useTrackStore = create<TrackStore>()(
       set(s => ({
         tracks: s.tracks.map(t => t.id === trackId ? { ...t, memories: (t.memories || []).filter(m => m.id !== memoryId) } : t),
       }));
-      sb().from('memories').delete().eq('id', memoryId).then(() => {});
 
       // Fire-and-forget to mem0
       const mem0ApiKey = useSettingsStore.getState().mem0ApiKey;
@@ -448,20 +373,15 @@ export const useTrackStore = create<TrackStore>()(
               : m
             )
             .filter(m => m.confidence >= 0.05);
-          // Sync to Supabase
+          // Fire-and-forget to mem0
           const mem = updated.find(m => m.id === memoryId);
+          const mem0ApiKey = useSettingsStore.getState().mem0ApiKey;
           if (mem) {
-            sb().from('memories').update({ confidence: mem.confidence, updated_at: new Date().toISOString() }).eq('id', memoryId).then(() => {});
-            // Fire-and-forget to mem0
-            const mem0ApiKey = useSettingsStore.getState().mem0ApiKey;
             if (mem0ApiKey) {
               updateMemory(memoryId, { metadata: { confidence: mem.confidence } }, mem0ApiKey).catch(console.warn);
             }
           } else {
             // Filtered out (confidence < 0.05), delete
-            sb().from('memories').delete().eq('id', memoryId).then(() => {});
-            // Fire-and-forget to mem0
-            const mem0ApiKey = useSettingsStore.getState().mem0ApiKey;
             if (mem0ApiKey) {
               deleteMemory(memoryId, mem0ApiKey).catch(console.warn);
             }
