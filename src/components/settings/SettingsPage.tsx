@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { useSettingsStore, type ModelId } from '@/store/useSettingsStore';
+import { useAuth } from '@/hooks/useAuth';
+import { createClient } from '@/lib/supabase/client';
+import { addMemory } from '@/lib/mem0-client';
 
 const MODELS: { id: ModelId; name: string; desc: string; provider: string; keyPlaceholder: string; baseUrlPlaceholder: string; pros: string; cons: string }[] = [
   { id: 'claude', name: 'Claude Sonnet', desc: 'Anthropic 最新模型', provider: 'claude', keyPlaceholder: 'sk-ant-...（Anthropic API Key）', baseUrlPlaceholder: 'https://api.anthropic.com（留空用官方地址）', pros: '结构化输出最稳定，复杂指令遵循最好', cons: '价格较高' },
@@ -20,6 +23,50 @@ export default function SettingsPage() {
   const mem0ApiKey = useSettingsStore(s => s.mem0ApiKey);
   const setMem0ApiKey = useSettingsStore(s => s.setMem0ApiKey);
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
+  const { user } = useAuth();
+  const [migrating, setMigrating] = useState(false);
+  const [migrateStatus, setMigrateStatus] = useState('');
+
+  const handleMigrate = async () => {
+    if (!user || !mem0ApiKey) return;
+    setMigrating(true);
+    setMigrateStatus('正在读取 Supabase 记忆...');
+
+    try {
+      const supabase = createClient() as any;
+      const { data: memories } = await supabase
+        .from('memories')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (!memories || memories.length === 0) {
+        setMigrateStatus('Supabase 中没有记忆需要迁移');
+        return;
+      }
+
+      let done = 0;
+      for (const m of memories) {
+        setMigrateStatus(`迁移中... ${done}/${memories.length}`);
+        try {
+          await addMemory(
+            [{ role: 'user', content: m.content }],
+            user.id,
+            m.track_id,
+            mem0ApiKey,
+            { type: m.type, source: m.source, confidence: m.confidence },
+          );
+        } catch {
+          // Skip individual failures
+        }
+        done++;
+      }
+      setMigrateStatus(`已迁移 ${done} 条记忆到 mem0 ✓`);
+    } catch (e) {
+      setMigrateStatus(`迁移失败: ${e instanceof Error ? e.message : '未知错误'}`);
+    } finally {
+      setMigrating(false);
+    }
+  };
 
   const toggleKeyVisibility = (provider: string) => {
     setVisibleKeys(prev => {
@@ -204,6 +251,24 @@ export default function SettingsPage() {
           <div style={{ fontSize: 11, color: '#8C8276', lineHeight: 1.5 }}>
             用于语义记忆检索，可在 mem0.ai 获取 API Key
           </div>
+          {mem0ApiKey && (
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                onClick={handleMigrate}
+                disabled={migrating}
+                style={{
+                  padding: '6px 12px', borderRadius: 6, fontSize: 12,
+                  border: '1px solid #E3DCCB', background: migrating ? '#E3DCCB' : '#F5F1E8',
+                  cursor: migrating ? 'default' : 'pointer', color: '#5A5148',
+                }}
+              >
+                {migrating ? '迁移中...' : '从 Supabase 迁移记忆'}
+              </button>
+              {migrateStatus && (
+                <span style={{ fontSize: 11, color: '#8C8276' }}>{migrateStatus}</span>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
