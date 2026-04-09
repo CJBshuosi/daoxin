@@ -4,17 +4,17 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTrackStore } from '@/store/useTrackStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useAuth } from '@/hooks/useAuth';
-import { buildStep1Prompt, buildStep3Prompt, buildStep4Prompt, buildStep4DynamicPrompt, buildPlannerPrompt, buildCheckerPrompt, buildOptimizePrompt, buildPolishPrompt } from '@/lib/prompt';
+import { buildStep1Prompt, buildStep3Prompt, buildCopyWriterPrompt, buildMetadataPrompt, buildCheckerPrompt, buildOptimizePrompt, buildPolishPrompt } from '@/lib/prompt';
 import { buildMemoryPrompt } from '@/lib/memory';
 import { addMemory } from '@/lib/mem0-client';
-import type { StepState, StrategyType, GenerationResult, AIMemoryExtraction, TopicOption, CheckerResult, PlannerModuleSelection } from '@/types';
+import { MEM0_CUSTOM_INSTRUCTIONS } from '@/lib/constants';
+import type { StepState, StrategyType, GenerationResult, AIMemoryExtraction, TopicOption, CheckerResult } from '@/types';
 import { STRATEGY_META } from '@/types';
 import Step1TopicConfirm from './Step1TopicConfirm';
 import Step2StrategySelect from './Step2StrategySelect';
 import Step3TopicSelect from './Step3TopicSelect';
 import Step5PolishConfirm from './Step5PolishConfirm';
 import QualityScoreCard from '../QualityScoreCard';
-import type { ModuleId } from '@/lib/sub_knowledge';
 
 interface Step1Analysis {
   analysis: string;
@@ -80,7 +80,6 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
   const initialized = useRef(false);
   const searchContextRef = useRef<string>('');
   const usedMemoryIdsRef = useRef<string[]>([]);
-  const moduleSelectionsRef = useRef<{ id: ModuleId; includeExamples?: boolean }[]>([]);
 
   const fetchSearchContext = useCallback(async (query: string): Promise<string> => {
     try {
@@ -161,43 +160,38 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
     const selected = topics[topicIndex];
     const memoryResult = await buildMemoryPrompt(topic + ' ' + (currentTrack.desc || ''), user?.id || '', currentTrack.id, mem0ApiKey);
     usedMemoryIdsRef.current = memoryResult.usedIds;
-    const strategyName = STRATEGY_META[strategy].name;
 
     try {
-      // Phase 1: Planner — select knowledge modules
-      setStepState(prev => ({ ...prev, step4Phase: 'planning' }));
-      const planResult = await callGenerate(
-        buildPlannerPrompt(currentTrack, topicAnalysis, strategyName, selected.executionPlan, memoryResult.prompt),
-        `选题：${selected.title}\n钩子：${selected.hook}\n执行思路：${selected.executionPlan}`,
-        'plan',
-        modelId,
-        apiKey,
-        baseUrl
-      );
-      const moduleSelections = (planResult.modules || []).map((m: PlannerModuleSelection) => ({
-        id: m.id as ModuleId,
-        includeExamples: m.loadExamples,
-      }));
-      moduleSelectionsRef.current = moduleSelections;
-
-      // Phase 2: Generator — create copytext with dynamic modules
-      setStepState(prev => ({ ...prev, step4Phase: 'generating' }));
-      const data = await callGenerate(
-        buildStep4DynamicPrompt(currentTrack, selected.title, selected.hook, selected.executionPlan, topicAnalysis, moduleSelections, memoryResult.prompt, searchContextRef.current),
+      // Phase 1: CopyWriter — generate copytext + titles only
+      setStepState(prev => ({ ...prev, step4Phase: 'writing' }));
+      const copyResult = await callGenerate(
+        buildCopyWriterPrompt(currentTrack, selected.title, selected.hook, selected.executionPlan, topicAnalysis, memoryResult.prompt, searchContextRef.current),
         `主题：${topic}\n\n请基于已选定的选题和钩子生成完整文案。`,
-        'step4',
+        'copywrite',
         modelId,
         apiKey,
         baseUrl
       );
+
+      // Phase 2: MetadataGenerator — generate analysis artifacts from copytext
+      setStepState(prev => ({ ...prev, step4Phase: 'metadata' }));
+      const metaResult = await callGenerate(
+        buildMetadataPrompt(currentTrack, copyResult.copytext, copyResult.titles, selected.executionPlan, topicAnalysis, memoryResult.prompt),
+        `请对以上文案进行分析，生成配套制作指导。`,
+        'metadata',
+        modelId,
+        apiKey,
+        baseUrl
+      );
+
       const result: GenerationResult = {
-        copytext: data.copytext || '',
-        titles: data.titles || [],
-        music: data.music || [],
-        emotionCurve: data.emotionCurve,
-        shootingGuide: data.shootingGuide,
-        structure: data.structure,
-        memory_entries: data.memory_entries as AIMemoryExtraction[] | undefined,
+        copytext: copyResult.copytext || '',
+        titles: copyResult.titles || [],
+        music: metaResult.music || [],
+        emotionCurve: metaResult.emotionCurve,
+        shootingGuide: metaResult.shootingGuide,
+        structure: metaResult.structure,
+        memory_entries: metaResult.memory_entries as AIMemoryExtraction[] | undefined,
       };
 
       // Phase 3: Checker — quality scoring
@@ -238,9 +232,9 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
       const selected = stepState.topics?.[stepState.selectedTopic!];
       if (!selected) return;
 
-      // Re-generate with checker feedback
-      setStepState(prev => ({ ...prev, step4Phase: 'generating' }));
-      const data = await callGenerate(
+      // Re-generate copytext with checker feedback
+      setStepState(prev => ({ ...prev, step4Phase: 'writing' }));
+      const copyData = await callGenerate(
         buildOptimizePrompt(
           currentTrack,
           stepState.result!.copytext,
@@ -248,7 +242,6 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
           stepState.checkerResult!.overallSuggestion + '\n' + stepState.checkerResult!.scores.filter(s => s.suggestion).map(s => `${s.dimension}：${s.suggestion}`).join('\n'),
           stepState.topicAnalysis || '',
           selected.executionPlan,
-          moduleSelectionsRef.current,
           memoryResult.prompt,
         ),
         `请根据质量审核反馈优化文案。`,
@@ -257,14 +250,26 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
         apiKey,
         baseUrl
       );
+
+      // Re-generate metadata from optimized copytext
+      setStepState(prev => ({ ...prev, step4Phase: 'metadata' }));
+      const metaResult = await callGenerate(
+        buildMetadataPrompt(currentTrack, copyData.copytext, copyData.titles, selected.executionPlan, stepState.topicAnalysis || '', memoryResult.prompt),
+        `请对优化后的文案进行分析。`,
+        'metadata',
+        modelId,
+        apiKey,
+        baseUrl
+      );
+
       const newResult: GenerationResult = {
-        copytext: data.copytext || '',
-        titles: data.titles || [],
-        music: data.music || [],
-        emotionCurve: data.emotionCurve,
-        shootingGuide: data.shootingGuide,
-        structure: data.structure,
-        memory_entries: data.memory_entries as AIMemoryExtraction[] | undefined,
+        copytext: copyData.copytext || '',
+        titles: copyData.titles || [],
+        music: metaResult.music || [],
+        emotionCurve: metaResult.emotionCurve,
+        shootingGuide: metaResult.shootingGuide,
+        structure: metaResult.structure,
+        memory_entries: metaResult.memory_entries as AIMemoryExtraction[] | undefined,
       };
 
       // Re-check
@@ -333,6 +338,7 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
           currentTrack.id,
           mem0ApiKey,
           { type: entry.type, source: 'ai', confidence: 0.4 },
+          { infer: true, customInstructions: MEM0_CUSTOM_INSTRUCTIONS },
         ).catch(console.warn);
       }
     }
@@ -459,10 +465,10 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
           <div style={{ padding: '12px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 0', color: '#8C8276', fontSize: 13 }}>
               <div className="tw-spinner" />
-              {stepState.step4Phase === 'planning' && '正在分析选题，选择知识模块...'}
-              {stepState.step4Phase === 'generating' && '正在生成完整文案...'}
+              {stepState.step4Phase === 'writing' && '正在创作文案...'}
+              {stepState.step4Phase === 'metadata' && '正在生成拍摄指导...'}
               {stepState.step4Phase === 'checking' && '正在进行质量自检...'}
-              {!stepState.step4Phase && '正在生成完整文案...'}
+              {!stepState.step4Phase && '正在创作文案...'}
             </div>
           </div>
         </div>
