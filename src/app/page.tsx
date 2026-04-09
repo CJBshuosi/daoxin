@@ -38,30 +38,6 @@ async function migrateLocalDataToSupabase(userId: string, trackState: any, perfS
       count: t.count ?? 0,
     }));
     await supabase.from('tracks').upsert(trackRows, { onConflict: 'id' });
-
-    // Upsert memories for each track
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const allMemories: any[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const t of tracks as any[]) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const memories: any[] = t.memories || [];
-      for (const m of memories) {
-        allMemories.push({
-          id: m.id,
-          track_id: m.trackId ?? t.id,
-          user_id: userId,
-          type: m.type ?? 'content',
-          content: m.content ?? '',
-          source: m.source ?? 'ai',
-          confidence: m.confidence ?? 0.5,
-          hit_count: m.hitCount ?? 0,
-        });
-      }
-    }
-    if (allMemories.length > 0) {
-      await supabase.from('memories').upsert(allMemories, { onConflict: 'id' });
-    }
   }
 
   // Upsert history items

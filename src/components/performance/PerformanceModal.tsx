@@ -2,10 +2,8 @@
 
 import { useState, useRef } from 'react';
 import { usePerformanceStore } from '@/store/usePerformanceStore';
-import { useTrackStore } from '@/store/useTrackStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useAuth } from '@/hooks/useAuth';
-import { calibrateMemories } from '@/lib/calibration';
 import type { HistoryItem, StrategyType } from '@/types';
 
 interface PerformanceModalProps {
@@ -27,9 +25,6 @@ interface ParsedMetrics {
 
 export default function PerformanceModal({ open, historyItem, onClose }: PerformanceModalProps) {
   const addPerformance = usePerformanceStore(s => s.addPerformance);
-  const getPerformanceLevel = usePerformanceStore(s => s.getPerformanceLevel);
-  const boostMemory = useTrackStore(s => s.boostMemory);
-  const getTrackMemories = useTrackStore(s => s.getTrackMemories);
   const { user } = useAuth();
   const modelId = useSettingsStore(s => s.model);
   const apiKeys = useSettingsStore(s => s.apiKeys);
@@ -94,7 +89,7 @@ export default function PerformanceModal({ open, historyItem, onClose }: Perform
   const handleConfirm = () => {
     if (!metrics) return;
 
-    const perfId = addPerformance({
+    addPerformance({
       historyItemId: historyItem.id,
       trackId: historyItem.trackId,
       platform: 'douyin',
@@ -110,17 +105,6 @@ export default function PerformanceModal({ open, historyItem, onClose }: Perform
       strategy: (historyItem.strategy || 'mingdao') as StrategyType,
       source: 'screenshot',
     }, user!.id);
-
-    // Auto-calibrate memories
-    const usedIds = historyItem.usedMemoryIds || [];
-    if (usedIds.length > 0) {
-      const level = getPerformanceLevel(perfId);
-      const trackMemories = getTrackMemories(historyItem.trackId);
-      const adjustments = calibrateMemories(level, usedIds, trackMemories);
-      for (const adj of adjustments) {
-        boostMemory(historyItem.trackId, adj.memoryId, adj.delta);
-      }
-    }
 
     onClose();
   };
@@ -266,7 +250,7 @@ export default function PerformanceModal({ open, historyItem, onClose }: Perform
                 onClick={handleConfirm}
                 style={{ ...btnStyle, width: '100%', background: '#E85D3B', color: 'white', border: 'none', padding: '10px 16px' }}
               >
-                确认保存并校准记忆
+                确认保存
               </button>
             </>
           )}

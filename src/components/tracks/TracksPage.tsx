@@ -69,8 +69,7 @@ export default function TracksPage() {
                 </div>
                 <div style={{ fontSize: 12, color: '#8C8276' }}>{t.desc || '暂无描述'}</div>
                 <div style={{ fontSize: 11, color: '#C8BFA9', marginTop: 4 }}>
-                  {(t.memories || []).length} 条记忆
-                  {t.knowledgeSeeded && ' · 已注入知识库'}
+                  {t.knowledgeSeeded && '已注入知识库'}
                 </div>
               </div>
             ))}
@@ -155,7 +154,7 @@ export default function TracksPage() {
 
                   {/* Memory */}
                   <div style={{ fontSize: 14, fontWeight: 600, color: '#3A3530', marginBottom: 12 }}>
-                    记忆系统 ({(selected.memories || []).length} 条)
+                    记忆系统
                   </div>
                   <MemoryDisplay
                     trackId={selected.id}

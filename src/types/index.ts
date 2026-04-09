@@ -37,8 +37,7 @@ export interface Track {
   color: string;
   banned: string;
   fewShot: string;
-  memory: string;            // 旧字段，兼容过渡
-  memories: MemoryEntry[];   // 新：结构化记忆
+  memories?: MemoryEntry[];  // 旧字段，兼容过渡（已迁移至 mem0）
   knowledgeId?: string;      // 绑定的内置知识库 ID（如 'guoxue'）
   knowledgeSeeded?: boolean; // 是否已完成种子注入
   profile?: TrackProfile;    // 赛道画像（首次生成时引导填写）

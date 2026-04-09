@@ -79,8 +79,6 @@ export default function TrackModal({ open, onClose, editTrack }: TrackModalProps
       color,
       banned: banned.trim(),
       fewShot: fewShot.trim(),
-      memory: editTrack?.memory ?? '',
-      memories: editTrack?.memories ?? [],
       refAccounts: editTrack?.refAccounts ?? [],
       count: editTrack?.count ?? 0,
     };
