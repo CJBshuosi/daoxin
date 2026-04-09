@@ -8,6 +8,7 @@ export { RULES as INFO_RULES, EXAMPLES as INFO_EXAMPLES } from './info-efficienc
 export { RULES as EMOTION_RULES, EXAMPLES as EMOTION_EXAMPLES } from './emotion-triggers';
 export { RULES as ECOMMERCE_RULES, EXAMPLES as ECOMMERCE_EXAMPLES } from './ecommerce-templates';
 export { RULES as SAFETY_RULES, EXAMPLES as SAFETY_EXAMPLES } from './content-safety';
+export { getFewShotExamples } from './few-shot-examples';
 
 export type ModuleId =
   | 'topic-methodology'
