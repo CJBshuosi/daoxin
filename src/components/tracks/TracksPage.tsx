@@ -158,7 +158,7 @@ export default function TracksPage() {
                     记忆系统 ({(selected.memories || []).length} 条)
                   </div>
                   <MemoryDisplay
-                    memories={selected.memories}
+                    trackId={selected.id}
                     trackName={selected.name}
                     onEdit={() => setMemoryModalOpen(true)}
                   />
