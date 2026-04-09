@@ -12,6 +12,8 @@ interface SettingsStore {
   setApiKey: (provider: string, key: string) => void;
   baseUrls: Record<string, string>;
   setBaseUrl: (provider: string, url: string) => void;
+  mem0ApiKey: string;
+  setMem0ApiKey: (key: string) => void;
 }
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -25,6 +27,8 @@ export const useSettingsStore = create<SettingsStore>()(
       baseUrls: {},
       setBaseUrl: (provider, url) =>
         set((s) => ({ baseUrls: { ...s.baseUrls, [provider]: url } })),
+      mem0ApiKey: '',
+      setMem0ApiKey: (key) => set({ mem0ApiKey: key }),
     }),
     { name: 'daoxin_settings' }
   )

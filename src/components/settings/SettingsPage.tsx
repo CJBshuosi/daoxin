@@ -17,6 +17,8 @@ export default function SettingsPage() {
   const setApiKey = useSettingsStore(s => s.setApiKey);
   const baseUrls = useSettingsStore(s => s.baseUrls);
   const setBaseUrl = useSettingsStore(s => s.setBaseUrl);
+  const mem0ApiKey = useSettingsStore(s => s.mem0ApiKey);
+  const setMem0ApiKey = useSettingsStore(s => s.setMem0ApiKey);
   const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
 
   const toggleKeyVisibility = (provider: string) => {
@@ -149,6 +151,59 @@ export default function SettingsPage() {
 
         <div style={{ marginTop: 20, padding: '12px 16px', borderRadius: 10, background: 'rgba(232,93,59,0.06)', fontSize: 12, color: '#5A5148', lineHeight: 1.6 }}>
           API Key 和代理地址仅保存在你的浏览器本地，不会上传到服务器。如果在中国大陆使用，可填写中转服务地址（如 API2D 等）。
+        </div>
+
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#3A3530', marginBottom: 12, marginTop: 32 }}>记忆系统 (mem0)</div>
+        <div
+          style={{
+            padding: '16px',
+            borderRadius: 10,
+            border: '1px solid var(--border-light, #C8BFA9)',
+            background: 'var(--bg-base, #F5F1E8)',
+          }}
+        >
+          <label style={{ fontSize: 12, color: '#8C8276', display: 'block', marginBottom: 8 }}>
+            mem0 API Key
+          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <input
+              type={visibleKeys.has('mem0') ? 'text' : 'password'}
+              value={mem0ApiKey}
+              onChange={e => setMem0ApiKey(e.target.value)}
+              placeholder="输入 mem0 API Key"
+              style={{
+                flex: 1,
+                padding: '6px 10px',
+                borderRadius: 8,
+                border: '1px solid var(--border-light, #C8BFA9)',
+                background: 'var(--bg-base, #FCF9F0)',
+                fontSize: 13,
+                fontFamily: 'monospace',
+                outline: 'none',
+                color: '#3A3530',
+              }}
+            />
+            <button
+              onClick={() => {
+                const next = new Set(visibleKeys);
+                if (next.has('mem0')) next.delete('mem0');
+                else next.add('mem0');
+                setVisibleKeys(next);
+              }}
+              style={{
+                padding: 4,
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                color: '#8C8276',
+              }}
+            >
+              {visibleKeys.has('mem0') ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          <div style={{ fontSize: 11, color: '#8C8276', lineHeight: 1.5 }}>
+            用于语义记忆检索，可在 mem0.ai 获取 API Key
+          </div>
         </div>
       </div>
     </div>
