@@ -85,16 +85,6 @@ export interface GenerationResult {
 
 // ===== Agent Pipeline (Phase 2) =====
 
-export interface PlannerModuleSelection {
-  id: string;
-  loadExamples: boolean;
-  reason: string;
-}
-
-export interface PlannerResult {
-  modules: PlannerModuleSelection[];
-}
-
 export interface QualityScore {
   dimension: string;
   score: number;
@@ -114,6 +104,8 @@ export interface CheckerResult {
 export interface Mem0Memory {
   id: string;
   memory: string;
+  agent_id?: string;
+  user_id?: string;
   metadata: {
     type?: MemoryType;
     source?: 'ai' | 'user' | 'system';
@@ -182,5 +174,5 @@ export interface StepState {
   // Phase 2: Agent pipeline state
   checkerResult?: CheckerResult;
   optimizeCount?: number;
-  step4Phase?: 'planning' | 'generating' | 'checking' | 'done';
+  step4Phase?: 'writing' | 'metadata' | 'checking' | 'done';
 }
