@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { useTrackStore } from '@/store/useTrackStore';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useSettingsStore } from '@/store/useSettingsStore';
+import { listMemories, addMemory, updateMemory, deleteMemory } from '@/lib/mem0-client';
 import type { MemoryEntry, MemoryType, Mem0Memory } from '@/types';
 import { MEMORY_TYPE_META } from '@/types';
 
@@ -23,20 +24,18 @@ function normalizeMem0(mem: Mem0Memory, trackId: string): MemoryEntry {
 interface MemoryEditModalProps {
   open: boolean;
   trackId: string;
-  memories: MemoryEntry[];
-  mem0Memories?: Mem0Memory[];
   onClose: () => void;
+  onMemoriesChanged?: () => void;
 }
 
 const TYPES: MemoryType[] = ['style', 'content', 'avoid', 'pattern'];
 
-export default function MemoryEditModal({ open, trackId, memories, mem0Memories, onClose }: MemoryEditModalProps) {
-  const addMemoryEntry = useTrackStore(s => s.addMemoryEntry);
-  const updateMemoryEntry = useTrackStore(s => s.updateMemoryEntry);
-  const deleteMemoryEntry = useTrackStore(s => s.deleteMemoryEntry);
-  const boostMemory = useTrackStore(s => s.boostMemory);
+export default function MemoryEditModal({ open, trackId, onClose, onMemoriesChanged }: MemoryEditModalProps) {
   const { user } = useAuth();
+  const mem0ApiKey = useSettingsStore(s => s.mem0ApiKey);
 
+  const [memories, setMemories] = useState<MemoryEntry[]>([]);
+  const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [editType, setEditType] = useState<MemoryType>('content');
@@ -44,14 +43,28 @@ export default function MemoryEditModal({ open, trackId, memories, mem0Memories,
   const [newContent, setNewContent] = useState('');
   const [newType, setNewType] = useState<MemoryType>('content');
 
+  const fetchMemories = useCallback(async () => {
+    if (!user?.id || !mem0ApiKey) return;
+    setLoading(true);
+    try {
+      const raw = await listMemories(user.id, trackId, mem0ApiKey);
+      setMemories(raw.map(m => normalizeMem0(m, trackId)));
+    } catch (e) {
+      console.error('Failed to fetch memories', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, trackId, mem0ApiKey]);
+
+  useEffect(() => {
+    if (open) {
+      fetchMemories();
+    }
+  }, [open, fetchMemories]);
+
   if (!open) return null;
 
-  const effectiveMemories: MemoryEntry[] =
-    mem0Memories && mem0Memories.length > 0
-      ? mem0Memories.map(m => normalizeMem0(m, trackId))
-      : memories;
-
-  const sorted = [...effectiveMemories].sort((a, b) => b.confidence - a.confidence);
+  const sorted = [...memories].sort((a, b) => b.confidence - a.confidence);
   const grouped: Partial<Record<MemoryType, MemoryEntry[]>> = {};
   for (const m of sorted) {
     (grouped[m.type] ||= []).push(m);
@@ -63,22 +76,43 @@ export default function MemoryEditModal({ open, trackId, memories, mem0Memories,
     setEditType(m.type);
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editingId || !editContent.trim()) return;
-    updateMemoryEntry(trackId, editingId, { content: editContent.trim(), type: editType });
+    await updateMemory(editingId, { text: editContent.trim(), metadata: { type: editType } }, mem0ApiKey);
     setEditingId(null);
+    await fetchMemories();
+    onMemoriesChanged?.();
   };
 
-  const handleAdd = () => {
-    if (!newContent.trim()) return;
-    addMemoryEntry(trackId, { type: newType, content: newContent.trim(), source: 'user' }, user!.id);
+  const handleAdd = async () => {
+    if (!newContent.trim() || !user?.id) return;
+    await addMemory(
+      [{ role: 'user', content: newContent.trim() }],
+      user.id,
+      trackId,
+      mem0ApiKey,
+      { type: newType, source: 'user', confidence: 0.9 },
+    );
     setNewContent('');
     setAddMode(false);
+    await fetchMemories();
+    onMemoriesChanged?.();
   };
 
-  const handleDelete = (memoryId: string) => {
-    deleteMemoryEntry(trackId, memoryId);
+  const handleDelete = async (memoryId: string) => {
+    await deleteMemory(memoryId, mem0ApiKey);
     if (editingId === memoryId) setEditingId(null);
+    await fetchMemories();
+    onMemoriesChanged?.();
+  };
+
+  const handleBoost = async (memoryId: string, delta: number) => {
+    const mem = memories.find(m => m.id === memoryId);
+    if (!mem) return;
+    const newConfidence = Math.min(1, Math.max(0, mem.confidence + delta));
+    await updateMemory(memoryId, { metadata: { confidence: newConfidence } }, mem0ApiKey);
+    await fetchMemories();
+    onMemoriesChanged?.();
   };
 
   const labelStyle = { fontSize: 10, letterSpacing: 3, textTransform: 'uppercase' as const, color: '#8C8276', marginBottom: 6 };
@@ -105,7 +139,7 @@ export default function MemoryEditModal({ open, trackId, memories, mem0Memories,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, fontWeight: 600 }}>
-            记忆管理 ({effectiveMemories.length} 条)
+            记忆管理 ({memories.length} 条)
           </span>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => setAddMode(true)} style={{ ...btnStyle, background: '#E85D3B', color: 'white', border: 'none' }}>
@@ -153,8 +187,15 @@ export default function MemoryEditModal({ open, trackId, memories, mem0Memories,
             </div>
           )}
 
+          {/* Loading state */}
+          {loading && (
+            <div style={{ textAlign: 'center', padding: 32, color: '#C8BFA9', fontSize: 13 }}>
+              加载中...
+            </div>
+          )}
+
           {/* Memory list by type */}
-          {TYPES.map(type => {
+          {!loading && TYPES.map(type => {
             const items = grouped[type];
             if (!items?.length) return null;
             const meta = MEMORY_TYPE_META[type];
@@ -214,8 +255,8 @@ export default function MemoryEditModal({ open, trackId, memories, mem0Memories,
                           {m.source === 'user' ? '手动' : m.source === 'system' ? '种子' : 'AI'}
                         </span>
                         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                          <button onClick={() => boostMemory(trackId, m.id, 0.1)} style={{ ...btnStyle, fontSize: 10, padding: '1px 4px' }} title="增强">+</button>
-                          <button onClick={() => boostMemory(trackId, m.id, -0.1)} style={{ ...btnStyle, fontSize: 10, padding: '1px 4px' }} title="减弱">-</button>
+                          <button onClick={() => handleBoost(m.id, 0.1)} style={{ ...btnStyle, fontSize: 10, padding: '1px 4px' }} title="增强">+</button>
+                          <button onClick={() => handleBoost(m.id, -0.1)} style={{ ...btnStyle, fontSize: 10, padding: '1px 4px' }} title="减弱">-</button>
                           <button onClick={() => startEdit(m)} style={{ ...btnStyle, fontSize: 10, padding: '1px 4px' }} title="编辑">E</button>
                           <button onClick={() => handleDelete(m.id)} style={{ ...btnStyle, fontSize: 10, padding: '1px 4px', color: '#c0392b' }} title="删除">x</button>
                         </div>
@@ -227,7 +268,7 @@ export default function MemoryEditModal({ open, trackId, memories, mem0Memories,
             );
           })}
 
-          {effectiveMemories.length === 0 && (
+          {!loading && memories.length === 0 && (
             <div style={{ textAlign: 'center', padding: 32, color: '#C8BFA9', fontSize: 13 }}>
               暂无记忆，点击"添加记忆"手动创建
             </div>

@@ -180,7 +180,6 @@ export default function TracksPage() {
         <MemoryEditModal
           open={memoryModalOpen}
           trackId={selected.id}
-          memories={selected.memories || []}
           onClose={() => setMemoryModalOpen(false)}
         />
       )}
