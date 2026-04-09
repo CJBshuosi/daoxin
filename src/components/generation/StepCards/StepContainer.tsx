@@ -71,7 +71,6 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
   const mem0ApiKey = useSettingsStore(s => s.mem0ApiKey);
   const { user } = useAuth();
   const incrementCount = useTrackStore(s => s.incrementCount);
-  const runDecay = useTrackStore(s => s.runDecay);
 
   const [stepState, setStepState] = useState<StepState>({ step: 1, topic });
   const [step1Data, setStep1Data] = useState<Step1Analysis | null>(null);
@@ -339,10 +338,9 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
         }
       });
     }
-    runDecay(currentTrack.id);
     incrementCount(currentTrack.id);
     onComplete(finalResult, topic, usedMemoryIdsRef.current, stepState.strategy);
-  }, [currentTrack, topic, mem0ApiKey, runDecay, incrementCount, onComplete, stepState.strategy]);
+  }, [currentTrack, topic, mem0ApiKey, incrementCount, onComplete, stepState.strategy]);
 
   useEffect(() => {
     if (!initialized.current) {

@@ -1,13 +1,18 @@
 'use client';
 
 import { create } from 'zustand';
-import type { Track, MemoryEntry, MemoryType, AIMemoryExtraction, HistoryItem } from '@/types';
-import { genMemoryId, mergeAIMemories, decayMemories } from '@/lib/memory';
+import type { Track, MemoryEntry, MemoryType, HistoryItem } from '@/types';
 import { getBuiltinTrack } from '@/lib/knowledge-seeds';
 import { createClient } from '@/lib/supabase/client';
+import { addMemory, updateMemory, deleteMemory } from '@/lib/mem0-client';
+import { useSettingsStore } from './useSettingsStore';
 
 function genId() {
   return 't' + Date.now() + Math.random().toString(36).slice(2, 6);
+}
+
+function genMemoryId() {
+  return 'm' + Date.now() + Math.random().toString(36).slice(2, 8);
 }
 
 const MAX_HISTORY = 200;
@@ -44,9 +49,7 @@ interface TrackStore {
   addMemoryEntry: (trackId: string, entry: { type: MemoryType; content: string; source: 'ai' | 'user' | 'system' }, userId: string) => void;
   updateMemoryEntry: (trackId: string, memoryId: string, updates: Partial<Pick<MemoryEntry, 'content' | 'type' | 'confidence'>>) => void;
   deleteMemoryEntry: (trackId: string, memoryId: string) => void;
-  mergeAIMemoryEntries: (trackId: string, entries: AIMemoryExtraction[], userId: string) => void;
   boostMemory: (trackId: string, memoryId: string, delta: number) => void;
-  runDecay: (trackId: string) => void;
   getTrackMemories: (trackId: string) => MemoryEntry[];
 }
 
@@ -319,6 +322,20 @@ export const useTrackStore = create<TrackStore>()(
         type: e.type, content: e.content, source: e.source, confidence: e.confidence, hit_count: 0,
       }));
       sb().from('memories').insert(rows).then(() => {});
+
+      // Fire-and-forget to mem0
+      const mem0ApiKey = useSettingsStore.getState().mem0ApiKey;
+      if (mem0ApiKey) {
+        for (const e of seedEntries) {
+          addMemory(
+            [{ role: 'user', content: e.content }],
+            userId,
+            trackId,
+            mem0ApiKey,
+            { type: e.type, source: e.source, confidence: e.confidence },
+          ).catch(console.warn);
+        }
+      }
     },
 
     seedCustomKnowledge: (trackId, seeds, userId) => {
@@ -341,6 +358,20 @@ export const useTrackStore = create<TrackStore>()(
         type: e.type, content: e.content, source: e.source, confidence: e.confidence, hit_count: 0,
       }));
       sb().from('memories').insert(rows).then(() => {});
+
+      // Fire-and-forget to mem0
+      const mem0ApiKey = useSettingsStore.getState().mem0ApiKey;
+      if (mem0ApiKey) {
+        for (const e of seedEntries) {
+          addMemory(
+            [{ role: 'user', content: e.content }],
+            userId,
+            trackId,
+            mem0ApiKey,
+            { type: e.type, source: e.source, confidence: e.confidence },
+          ).catch(console.warn);
+        }
+      }
     },
 
     addMemoryEntry: (trackId, { type, content, source }, userId) => {
@@ -359,6 +390,18 @@ export const useTrackStore = create<TrackStore>()(
         id: entryId, track_id: trackId, user_id: userId,
         type, content, source, confidence: entry.confidence, hit_count: 0,
       }).then(() => {});
+
+      // Fire-and-forget to mem0
+      const mem0ApiKey = useSettingsStore.getState().mem0ApiKey;
+      if (mem0ApiKey) {
+        addMemory(
+          [{ role: 'user', content }],
+          userId,
+          trackId,
+          mem0ApiKey,
+          { type, source, confidence: entry.confidence },
+        ).catch(console.warn);
+      }
     },
 
     updateMemoryEntry: (trackId, memoryId, updates) => {
@@ -381,35 +424,12 @@ export const useTrackStore = create<TrackStore>()(
         tracks: s.tracks.map(t => t.id === trackId ? { ...t, memories: (t.memories || []).filter(m => m.id !== memoryId) } : t),
       }));
       sb().from('memories').delete().eq('id', memoryId).then(() => {});
-    },
 
-    mergeAIMemoryEntries: (trackId, entries, userId) => {
-      set(s => ({
-        tracks: s.tracks.map(t => {
-          if (t.id !== trackId) return t;
-          const merged = mergeAIMemories(t.memories || [], trackId, entries);
-          // Sync new memories to Supabase
-          const existingIds = new Set((t.memories || []).map(m => m.id));
-          const newMemories = merged.filter(m => !existingIds.has(m.id));
-          if (newMemories.length > 0) {
-            const rows = newMemories.map(m => ({
-              id: m.id, track_id: trackId, user_id: userId,
-              type: m.type, content: m.content, source: m.source, confidence: m.confidence, hit_count: m.hitCount,
-            }));
-            sb().from('memories').insert(rows).then(() => {});
-          }
-          // Update existing memories' confidence
-          for (const m of merged) {
-            if (existingIds.has(m.id)) {
-              const old = (t.memories || []).find(om => om.id === m.id);
-              if (old && (old.confidence !== m.confidence || old.content !== m.content)) {
-                sb().from('memories').update({ confidence: m.confidence, content: m.content, updated_at: new Date().toISOString() }).eq('id', m.id).then(() => {});
-              }
-            }
-          }
-          return { ...t, memories: merged };
-        }),
-      }));
+      // Fire-and-forget to mem0
+      const mem0ApiKey = useSettingsStore.getState().mem0ApiKey;
+      if (mem0ApiKey) {
+        deleteMemory(memoryId, mem0ApiKey).catch(console.warn);
+      }
     },
 
     boostMemory: (trackId, memoryId, delta) => {
@@ -426,34 +446,21 @@ export const useTrackStore = create<TrackStore>()(
           const mem = updated.find(m => m.id === memoryId);
           if (mem) {
             sb().from('memories').update({ confidence: mem.confidence, updated_at: new Date().toISOString() }).eq('id', memoryId).then(() => {});
+            // Fire-and-forget to mem0
+            const mem0ApiKey = useSettingsStore.getState().mem0ApiKey;
+            if (mem0ApiKey) {
+              updateMemory(memoryId, { metadata: { confidence: mem.confidence } }, mem0ApiKey).catch(console.warn);
+            }
           } else {
             // Filtered out (confidence < 0.05), delete
             sb().from('memories').delete().eq('id', memoryId).then(() => {});
-          }
-          return { ...t, memories: updated };
-        }),
-      }));
-    },
-
-    runDecay: (trackId) => {
-      set(s => ({
-        tracks: s.tracks.map(t => {
-          if (t.id !== trackId) return t;
-          const decayed = decayMemories(t.memories || [], trackId);
-          // Sync deleted memories
-          const keptIds = new Set(decayed.map(m => m.id));
-          const removedIds = (t.memories || []).filter(m => !keptIds.has(m.id)).map(m => m.id);
-          if (removedIds.length > 0) {
-            sb().from('memories').delete().in('id', removedIds).then(() => {});
-          }
-          // Sync decayed confidence
-          for (const m of decayed) {
-            const old = (t.memories || []).find(om => om.id === m.id);
-            if (old && old.confidence !== m.confidence) {
-              sb().from('memories').update({ confidence: m.confidence }).eq('id', m.id).then(() => {});
+            // Fire-and-forget to mem0
+            const mem0ApiKey = useSettingsStore.getState().mem0ApiKey;
+            if (mem0ApiKey) {
+              deleteMemory(memoryId, mem0ApiKey).catch(console.warn);
             }
           }
-          return { ...t, memories: decayed };
+          return { ...t, memories: updated };
         }),
       }));
     },
