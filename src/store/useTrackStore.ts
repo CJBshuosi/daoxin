@@ -417,6 +417,12 @@ export const useTrackStore = create<TrackStore>()(
       if (updates.type !== undefined) dbUpdate.type = updates.type;
       if (updates.confidence !== undefined) dbUpdate.confidence = updates.confidence;
       sb().from('memories').update(dbUpdate).eq('id', memoryId).then(() => {});
+
+      // Fire-and-forget to mem0
+      const mem0ApiKey = useSettingsStore.getState().mem0ApiKey;
+      if (mem0ApiKey) {
+        updateMemory(memoryId, { text: updates.content, metadata: { type: updates.type } }, mem0ApiKey).catch(console.warn);
+      }
     },
 
     deleteMemoryEntry: (trackId, memoryId) => {

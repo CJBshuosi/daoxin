@@ -6,6 +6,7 @@ import { useSettingsStore } from '@/store/useSettingsStore';
 import { useAuth } from '@/hooks/useAuth';
 import { buildStep1Prompt, buildStep3Prompt, buildStep4Prompt, buildStep4DynamicPrompt, buildPlannerPrompt, buildCheckerPrompt, buildOptimizePrompt, buildPolishPrompt } from '@/lib/prompt';
 import { buildMemoryPrompt } from '@/lib/memory';
+import { addMemory } from '@/lib/mem0-client';
 import type { StepState, StrategyType, GenerationResult, AIMemoryExtraction, TopicOption, CheckerResult, PlannerModuleSelection } from '@/types';
 import { STRATEGY_META } from '@/types';
 import Step1TopicConfirm from './Step1TopicConfirm';
@@ -325,18 +326,15 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
   const handleConfirm = useCallback((finalResult: GenerationResult) => {
     if (!currentTrack) return;
     if (finalResult.memory_entries && finalResult.memory_entries.length > 0 && mem0ApiKey) {
-      // Fire-and-forget: add AI-extracted memories to mem0
-      import('@/lib/mem0-client').then(({ addMemory }) => {
-        for (const entry of finalResult.memory_entries!) {
-          addMemory(
-            [{ role: 'assistant', content: entry.content }],
-            user!.id,
-            currentTrack.id,
-            mem0ApiKey,
-            { type: entry.type, source: 'ai', confidence: 0.4 },
-          ).catch(console.warn);
-        }
-      });
+      for (const entry of finalResult.memory_entries!) {
+        addMemory(
+          [{ role: 'assistant', content: entry.content }],
+          user!.id,
+          currentTrack.id,
+          mem0ApiKey,
+          { type: entry.type, source: 'ai', confidence: 0.4 },
+        ).catch(console.warn);
+      }
     }
     incrementCount(currentTrack.id);
     onComplete(finalResult, topic, usedMemoryIdsRef.current, stepState.strategy);

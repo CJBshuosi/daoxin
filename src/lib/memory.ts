@@ -35,8 +35,9 @@ export function formatMemoryPrompt(memories: Mem0Memory[]): string {
     }
   }
 
-  // Include untyped memories
-  const untyped = memories.filter(m => !m.metadata?.type || !['style', 'content', 'avoid', 'pattern'].includes(m.metadata.type as string));
+  // Include memories with a truthy type that isn't in the known set
+  const knownTypes = new Set(['style', 'content', 'avoid', 'pattern']);
+  const untyped = memories.filter(m => m.metadata?.type && !knownTypes.has(m.metadata.type as string));
   if (untyped.length > 0) {
     prompt += `其他记忆：\n`;
     for (const m of untyped) {
