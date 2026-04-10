@@ -4,8 +4,9 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTrackStore } from '@/store/useTrackStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useAuth } from '@/hooks/useAuth';
-import { buildStep1Prompt, buildStep3Prompt, buildCopyWriterPrompt, buildMetadataPrompt, buildCheckerPrompt, buildOptimizePrompt, buildPolishPrompt } from '@/lib/prompt';
+import { buildStep1Prompt, buildStep3Prompt, buildCopyWriterPrompt, buildMetadataPrompt, buildCheckerPrompt, buildOptimizePrompt, buildPolishPrompt, buildCompliancePrompt } from '@/lib/prompt';
 import { buildMemoryPrompt } from '@/lib/memory';
+import { scanBannedWords, formatBannedHits } from '@/lib/banned-words';
 import { addMemory } from '@/lib/mem0-client';
 import { MEM0_CUSTOM_INSTRUCTIONS } from '@/lib/constants';
 import type { StepState, StrategyType, GenerationResult, AIMemoryExtraction, TopicOption, CheckerResult } from '@/types';
@@ -173,10 +174,28 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
         baseUrl
       );
 
+      // Phase 1.5: Compliance — scan and auto-replace banned words
+      let finalCopytext = copyResult.copytext || '';
+      let finalTitles = copyResult.titles || [];
+      const bannedHits = scanBannedWords(finalCopytext + ' ' + finalTitles.join(' '));
+      if (bannedHits.length > 0) {
+        setStepState(prev => ({ ...prev, step4Phase: 'compliance' }));
+        const complianceResult = await callGenerate(
+          buildCompliancePrompt(finalCopytext, finalTitles, formatBannedHits(bannedHits)),
+          `请替换文案中的违禁词。`,
+          'compliance',
+          modelId,
+          apiKey,
+          baseUrl
+        );
+        finalCopytext = complianceResult.copytext || finalCopytext;
+        finalTitles = complianceResult.titles || finalTitles;
+      }
+
       // Phase 2: MetadataGenerator — generate analysis artifacts from copytext
       setStepState(prev => ({ ...prev, step4Phase: 'metadata' }));
       const metaResult = await callGenerate(
-        buildMetadataPrompt(currentTrack, copyResult.copytext, copyResult.titles, selected.executionPlan, topicAnalysis, memoryResult.prompt),
+        buildMetadataPrompt(currentTrack, finalCopytext, finalTitles, selected.executionPlan, topicAnalysis, memoryResult.prompt),
         `请对以上文案进行分析，生成配套制作指导。`,
         'metadata',
         modelId,
@@ -185,8 +204,8 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
       );
 
       const result: GenerationResult = {
-        copytext: copyResult.copytext || '',
-        titles: copyResult.titles || [],
+        copytext: finalCopytext,
+        titles: finalTitles,
         music: metaResult.music || [],
         emotionCurve: metaResult.emotionCurve,
         shootingGuide: metaResult.shootingGuide,
@@ -251,10 +270,28 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
         baseUrl
       );
 
+      // Compliance check on optimized copy
+      let optCopytext = copyData.copytext || '';
+      let optTitles = copyData.titles || [];
+      const optBannedHits = scanBannedWords(optCopytext + ' ' + optTitles.join(' '));
+      if (optBannedHits.length > 0) {
+        setStepState(prev => ({ ...prev, step4Phase: 'compliance' }));
+        const complianceResult = await callGenerate(
+          buildCompliancePrompt(optCopytext, optTitles, formatBannedHits(optBannedHits)),
+          `请替换文案中的违禁词。`,
+          'compliance',
+          modelId,
+          apiKey,
+          baseUrl
+        );
+        optCopytext = complianceResult.copytext || optCopytext;
+        optTitles = complianceResult.titles || optTitles;
+      }
+
       // Re-generate metadata from optimized copytext
       setStepState(prev => ({ ...prev, step4Phase: 'metadata' }));
       const metaResult = await callGenerate(
-        buildMetadataPrompt(currentTrack, copyData.copytext, copyData.titles, selected.executionPlan, stepState.topicAnalysis || '', memoryResult.prompt),
+        buildMetadataPrompt(currentTrack, optCopytext, optTitles, selected.executionPlan, stepState.topicAnalysis || '', memoryResult.prompt),
         `请对优化后的文案进行分析。`,
         'metadata',
         modelId,
@@ -263,8 +300,8 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
       );
 
       const newResult: GenerationResult = {
-        copytext: copyData.copytext || '',
-        titles: copyData.titles || [],
+        copytext: optCopytext,
+        titles: optTitles,
         music: metaResult.music || [],
         emotionCurve: metaResult.emotionCurve,
         shootingGuide: metaResult.shootingGuide,
@@ -466,6 +503,7 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 0', color: '#8C8276', fontSize: 13 }}>
               <div className="tw-spinner" />
               {stepState.step4Phase === 'writing' && '正在创作文案...'}
+              {stepState.step4Phase === 'compliance' && '正在检测平台违禁词...'}
               {stepState.step4Phase === 'metadata' && '正在生成拍摄指导...'}
               {stepState.step4Phase === 'checking' && '正在进行质量自检...'}
               {!stepState.step4Phase && '正在创作文案...'}
@@ -478,6 +516,8 @@ export default function StepContainer({ topic, onComplete, onCancel }: StepConta
       {stepState.step === 5 && stepState.checkerResult && (
         <QualityScoreCard
           result={stepState.checkerResult}
+          copytext={stepState.result?.copytext}
+          titles={stepState.result?.titles}
           loading={loading && stepState.step4Phase !== 'done' && stepState.step4Phase !== undefined}
           optimizeCount={stepState.optimizeCount || 0}
           maxOptimize={2}

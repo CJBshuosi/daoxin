@@ -92,6 +92,7 @@ export default function MemoryEditModal({ open, trackId, onClose, onMemoriesChan
       trackId,
       mem0ApiKey,
       { type: newType, source: 'user', confidence: 0.9 },
+      { infer: false }, // raw store — user-entered content must not be filtered
     );
     setNewContent('');
     setAddMode(false);

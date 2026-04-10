@@ -5,6 +5,8 @@ import type { CheckerResult } from '@/types';
 
 interface QualityScoreCardProps {
   result: CheckerResult;
+  copytext?: string;
+  titles?: string[];
   loading: boolean;
   optimizeCount: number;
   maxOptimize: number;
@@ -36,7 +38,7 @@ function ScoreBar({ score, max = 10 }: { score: number; max?: number }) {
 }
 
 export default function QualityScoreCard({
-  result, loading, optimizeCount, maxOptimize, onAccept, onOptimize,
+  result, copytext, titles, loading, optimizeCount, maxOptimize, onAccept, onOptimize,
 }: QualityScoreCardProps) {
   const totalColor = result.totalScore >= 49 ? '#27ae60' : result.totalScore >= 35 ? '#E85D3B' : '#c0392b';
   const btnBase = {
@@ -67,8 +69,25 @@ export default function QualityScoreCard({
       }}>
         <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: result.pass ? '#27ae60' : '#E85D3B', color: 'white' }}>质量评分</span>
         <span style={{ fontSize: 12, color: '#5A5148' }}>AI 自检报告</span>
-        <span style={{ marginLeft: 'auto', fontSize: 16, fontWeight: 700, color: totalColor }}>{result.totalScore}分</span>
+        <span style={{ marginLeft: 'auto', fontSize: 16, fontWeight: 700, color: totalColor }}>{result.totalScore}<span style={{ fontSize: 12, fontWeight: 400, color: '#8C8276' }}>/70</span></span>
       </div>
+
+      {/* Copytext preview */}
+      {copytext && (
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid #E3DCCB' }}>
+          {titles && titles.length > 0 && (
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#3A3530', marginBottom: 8 }}>
+              {titles[0]}
+            </div>
+          )}
+          <div style={{
+            fontSize: 12, color: '#5A5148', lineHeight: 1.8,
+            whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto',
+          }}>
+            {copytext}
+          </div>
+        </div>
+      )}
 
       <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {/* Score bars */}
@@ -95,6 +114,9 @@ export default function QualityScoreCard({
         {/* Overall suggestion */}
         <div style={{ fontSize: 11, color: '#5A5148', padding: '6px 0', borderTop: '1px solid #E3DCCB' }}>
           <span style={{ fontWeight: 600 }}>整体建议：</span>{result.overallSuggestion}
+          <div style={{ marginTop: 6, fontSize: 10, color: '#8C8276', lineHeight: 1.6 }}>
+            💡 AI 优化和润色均会调用 API 产生费用，建议参考以上建议自行修改文案。
+          </div>
         </div>
 
         {/* Actions */}

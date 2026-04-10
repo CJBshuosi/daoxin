@@ -27,8 +27,14 @@ export default function MemoryDisplay({ trackId, trackName, onEdit, refreshKey }
     }
     setLoading(true);
     listMemories(user.id, trackId, mem0ApiKey)
-      .then(setMemories)
-      .catch(() => setMemories([]))
+      .then(result => {
+        console.log('[MemoryDisplay] listMemories result', { trackId, count: result.length, result });
+        setMemories(result);
+      })
+      .catch(err => {
+        console.error('[MemoryDisplay] listMemories failed', { trackId, userId: user.id, err });
+        setMemories([]);
+      })
       .finally(() => setLoading(false));
   }, [user?.id, mem0ApiKey, trackId, refreshKey]);
 

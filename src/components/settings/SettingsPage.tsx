@@ -54,6 +54,7 @@ export default function SettingsPage() {
             m.track_id,
             mem0ApiKey,
             { type: m.type, source: m.source, confidence: m.confidence },
+            { infer: false }, // migration: preserve original text as-is
           );
         } catch {
           // Skip individual failures

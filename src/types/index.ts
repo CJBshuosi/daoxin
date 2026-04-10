@@ -174,5 +174,5 @@ export interface StepState {
   // Phase 2: Agent pipeline state
   checkerResult?: CheckerResult;
   optimizeCount?: number;
-  step4Phase?: 'writing' | 'metadata' | 'checking' | 'done';
+  step4Phase?: 'writing' | 'compliance' | 'metadata' | 'checking' | 'done';
 }

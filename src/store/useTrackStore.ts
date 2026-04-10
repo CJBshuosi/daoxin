@@ -5,6 +5,7 @@ import type { Track, MemoryEntry, MemoryType, HistoryItem } from '@/types';
 import { getBuiltinTrack } from '@/lib/knowledge-seeds';
 import { createClient } from '@/lib/supabase/client';
 import { addMemory, updateMemory, deleteMemory } from '@/lib/mem0-client';
+import { MEM0_CUSTOM_INSTRUCTIONS } from '@/lib/constants';
 import { useSettingsStore } from './useSettingsStore';
 
 function genId() {
@@ -265,7 +266,7 @@ export const useTrackStore = create<TrackStore>()(
       // Write to Supabase
       sb().from('tracks').update({ knowledge_id: knowledgeId, knowledge_seeded: true }).eq('id', trackId).then(() => {});
 
-      // Fire-and-forget to mem0
+      // Fire-and-forget to mem0 (infer=false for seeds: store as-is, immediately queryable)
       const mem0ApiKey = useSettingsStore.getState().mem0ApiKey;
       if (mem0ApiKey) {
         for (const e of seedEntries) {
@@ -275,6 +276,7 @@ export const useTrackStore = create<TrackStore>()(
             trackId,
             mem0ApiKey,
             { type: e.type, source: e.source, confidence: e.confidence },
+            { infer: false },
           ).catch(console.warn);
         }
       }
@@ -296,7 +298,7 @@ export const useTrackStore = create<TrackStore>()(
 
       sb().from('tracks').update({ knowledge_id: 'custom', knowledge_seeded: true }).eq('id', trackId).then(() => {});
 
-      // Fire-and-forget to mem0
+      // Fire-and-forget to mem0 (infer=false for seeds: store as-is, immediately queryable)
       const mem0ApiKey = useSettingsStore.getState().mem0ApiKey;
       if (mem0ApiKey) {
         for (const e of seedEntries) {
@@ -306,6 +308,7 @@ export const useTrackStore = create<TrackStore>()(
             trackId,
             mem0ApiKey,
             { type: e.type, source: e.source, confidence: e.confidence },
+            { infer: false },
           ).catch(console.warn);
         }
       }
@@ -323,7 +326,7 @@ export const useTrackStore = create<TrackStore>()(
         tracks: s.tracks.map(t => t.id === trackId ? { ...t, memories: [...(t.memories || []), entry] } : t),
       }));
 
-      // Fire-and-forget to mem0
+      // Fire-and-forget to mem0 (infer=false for user/system; raw store immediately queryable)
       const mem0ApiKey = useSettingsStore.getState().mem0ApiKey;
       if (mem0ApiKey) {
         addMemory(
@@ -332,6 +335,7 @@ export const useTrackStore = create<TrackStore>()(
           trackId,
           mem0ApiKey,
           { type, source, confidence: entry.confidence },
+          { infer: false },
         ).catch(console.warn);
       }
     },

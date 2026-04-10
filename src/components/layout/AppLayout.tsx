@@ -10,13 +10,13 @@ import TracksPage from '@/components/tracks/TracksPage';
 import DocumentsPage from '@/components/documents/DocumentsPage';
 import SettingsPage from '@/components/settings/SettingsPage';
 
-const PAGES: Record<PageId, React.ComponentType> = {
-  workspace: WorkspacePage,
-  knowledge: KnowledgePage,
-  tracks: TracksPage,
-  documents: DocumentsPage,
-  settings: SettingsPage,
-};
+const PAGES: { id: PageId; Component: React.ComponentType }[] = [
+  { id: 'workspace', Component: WorkspacePage },
+  { id: 'knowledge', Component: KnowledgePage },
+  { id: 'tracks', Component: TracksPage },
+  { id: 'documents', Component: DocumentsPage },
+  { id: 'settings', Component: SettingsPage },
+];
 
 export default function AppLayout() {
   const activePage = useNavigationStore(s => s.activePage);
@@ -35,15 +35,17 @@ export default function AppLayout() {
     );
   }
 
-  const PageComponent = PAGES[activePage];
-
   return (
     <div className="tw-app">
       <SidebarMinimal activePage={activePage} onNavigate={(page) => navigate(page)} />
       <div className="tw-main">
         <TopBar />
         <div className="tw-content">
-          <PageComponent />
+          {PAGES.map(({ id, Component }) => (
+            <div key={id} style={{ display: activePage === id ? 'contents' : 'none' }}>
+              <Component />
+            </div>
+          ))}
         </div>
       </div>
     </div>

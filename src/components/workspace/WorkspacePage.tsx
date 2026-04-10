@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTrackStore } from '@/store/useTrackStore';
 import { useNavigationStore } from '@/store/useNavigationStore';
 import StepContainer from '@/components/generation/StepCards/StepContainer';
-import TrackProfileModal from '@/components/track/TrackProfileModal';
+
 import Keyboard from './Keyboard';
 import type { GenerationResult, StrategyType } from '@/types';
 
@@ -31,13 +31,14 @@ export default function WorkspacePage() {
   const [promptOpacity, setPromptOpacity] = useState(1);
   const [trackMenuOpen, setTrackMenuOpen] = useState(false);
   const [activeFlow, setActiveFlow] = useState<string | null>(null);
-  const [profileModalOpen, setProfileModalOpen] = useState(false);
+
 
   const inputRef = useRef<HTMLInputElement>(null);
   const isComposing = useRef(false);
   const screenRef = useRef<HTMLDivElement>(null);
 
   const isGenerating = !!activeFlow;
+  const isActive = useNavigationStore(s => s.activePage) === 'workspace';
 
   // Rotate prompt hints
   useEffect(() => {
@@ -101,7 +102,7 @@ export default function WorkspacePage() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isGenerating) return;
+      if (isGenerating || !isActive) return;
       const target = e.target as HTMLElement;
       if (target !== inputRef.current && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
         return;
@@ -116,10 +117,11 @@ export default function WorkspacePage() {
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isGenerating, text, currentTrack]);
+  }, [isGenerating, isActive, text, currentTrack]);
 
   // Focus input on click — skip dialogs and form elements
   useEffect(() => {
+    if (!isActive || isGenerating) return;
     const focus = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (target.closest('[role="dialog"]') || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
@@ -130,15 +132,11 @@ export default function WorkspacePage() {
     document.addEventListener('click', focus);
     inputRef.current?.focus();
     return () => document.removeEventListener('click', focus);
-  }, []);
+  }, [isActive, isGenerating]);
 
   const handleGenerate = useCallback(() => {
     if (!currentTrack) return;
     if (!text.trim()) return;
-    if (!currentTrack.profileCompleted) {
-      setProfileModalOpen(true);
-      return;
-    }
     startFlow();
   }, [currentTrack, text]);
 
@@ -164,6 +162,8 @@ export default function WorkspacePage() {
 
   const handleCancelFlow = () => {
     setActiveFlow(null);
+    setText('');
+    setTimeout(() => inputRef.current?.focus(), 50);
   };
 
   return (
@@ -230,16 +230,20 @@ export default function WorkspacePage() {
                   <span className="tw-typed-text">{text}</span>
                   {composing && <span className="tw-composing">{composing}</span>}
                   <span className="tw-cursor" />
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    autoComplete="off"
-                    spellCheck={false}
-                    className="tw-hidden-input"
-                  />
                 </div>
               </>
             )}
+            {/* Hidden input always mounted so IME listeners stay attached */}
+            <input
+              ref={inputRef}
+              type="text"
+              autoComplete="one-time-code"
+              data-lpignore="true"
+              data-1p-ignore="true"
+              spellCheck={false}
+              className="tw-hidden-input"
+              style={{ position: 'absolute', opacity: 0, pointerEvents: isGenerating ? 'none' : 'auto' }}
+            />
           </div>
         </div>
 
@@ -247,15 +251,6 @@ export default function WorkspacePage() {
         <Keyboard visible={!isGenerating} />
       </div>
 
-      {/* Profile modal */}
-      {currentTrack && (
-        <TrackProfileModal
-          open={profileModalOpen}
-          track={currentTrack}
-          onClose={() => setProfileModalOpen(false)}
-          onComplete={() => { setProfileModalOpen(false); startFlow(); }}
-        />
-      )}
     </>
   );
 }

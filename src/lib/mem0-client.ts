@@ -40,13 +40,23 @@ export async function addMemory(
   agentId: string,
   mem0ApiKey: string,
   metadata?: { type?: MemoryType; source?: string; confidence?: number },
+  options?: {
+    /** Pass false to bypass mem0's LLM extraction and store raw text as-is. */
+    infer?: boolean;
+    /** Custom instructions for mem0's LLM extraction (only used when infer=true). */
+    customInstructions?: string;
+  },
 ): Promise<Mem0Memory[]> {
+  // Always include track_id in metadata so we can filter by track on list/search
+  const enrichedMetadata = { ...metadata, track_id: agentId };
   const data = await callMemoryAPI({
     action: 'add',
     messages,
     user_id: userId,
     agent_id: agentId,
-    metadata,
+    metadata: enrichedMetadata,
+    ...(typeof options?.infer === 'boolean' ? { infer: options.infer } : {}),
+    ...(options?.customInstructions ? { custom_instructions: options.customInstructions } : {}),
   }, mem0ApiKey);
   return (data.results || data || []) as Mem0Memory[];
 }

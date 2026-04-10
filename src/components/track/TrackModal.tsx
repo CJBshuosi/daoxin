@@ -9,7 +9,7 @@ import { useTrackStore } from '@/store/useTrackStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useAuth } from '@/hooks/useAuth';
 import { COLORS } from '@/lib/constants';
-import type { Track, MemoryType } from '@/types';
+import type { Track, TrackProfile, MemoryType } from '@/types';
 
 interface TrackModalProps {
   open: boolean;
@@ -32,6 +32,13 @@ export default function TrackModal({ open, onClose, editTrack }: TrackModalProps
   const [color, setColor] = useState(COLORS[0]);
   const [banned, setBanned] = useState('');
   const [fewShot, setFewShot] = useState('');
+  const [showProfile, setShowProfile] = useState(false);
+  const [profile, setProfile] = useState<TrackProfile>({
+    targetAudience: '',
+    persona: '',
+    product: '',
+    contentGoal: '',
+  });
 
   const [step, setStep] = useState<KnowledgeStep>('form');
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
@@ -58,12 +65,16 @@ export default function TrackModal({ open, onClose, editTrack }: TrackModalProps
       setColor(editTrack.color);
       setBanned(editTrack.banned);
       setFewShot(editTrack.fewShot);
+      setProfile(editTrack.profile || { targetAudience: '', persona: '', product: '', contentGoal: '' });
+      setShowProfile(!!(editTrack.profile?.targetAudience || editTrack.profile?.persona || editTrack.profile?.product || editTrack.profile?.contentGoal));
     } else {
       setName('');
       setDesc('');
       setColor(COLORS[Math.floor(Math.random() * COLORS.length)]);
       setBanned('');
       setFewShot('');
+      setProfile({ targetAudience: '', persona: '', product: '', contentGoal: '' });
+      setShowProfile(true);
     }
     setStep('form');
     setMatchResult(null);
@@ -73,6 +84,12 @@ export default function TrackModal({ open, onClose, editTrack }: TrackModalProps
 
   const handleSave = async () => {
     if (!name.trim()) { alert('请输入赛道名称'); return; }
+    const missingProfile = !profile.targetAudience.trim() || !profile.persona.trim() || !profile.product.trim() || !profile.contentGoal.trim();
+    if (missingProfile) {
+      setShowProfile(true);
+      alert('请完善赛道画像，所有画像字段均为必填');
+      return;
+    }
     const data = {
       name: name.trim(),
       desc: desc.trim(),
@@ -81,6 +98,8 @@ export default function TrackModal({ open, onClose, editTrack }: TrackModalProps
       fewShot: fewShot.trim(),
       refAccounts: editTrack?.refAccounts ?? [],
       count: editTrack?.count ?? 0,
+      profile,
+      profileCompleted: true,
     };
 
     if (editTrack) {
@@ -292,7 +311,7 @@ export default function TrackModal({ open, onClose, editTrack }: TrackModalProps
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-3">
+        <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
           <div>
             <label className="text-[11px] tracking-[2px] text-ink3 uppercase block mb-1">赛道名称</label>
             <Input value={name} onChange={e => setName(e.target.value)} placeholder="例如：道家养生、职场干货" maxLength={12} className="bg-paper2 border-paper3" />
@@ -334,6 +353,62 @@ export default function TrackModal({ open, onClose, editTrack }: TrackModalProps
             <div className="text-[11px] text-ink3 mt-1 bg-[#faf7f1] p-2 rounded border-l-[3px] border-gold">
               粘贴真实爆款文案，比任何风格描述都管用。
             </div>
+          </div>
+
+          {/* Profile section */}
+          <div className="border-t border-paper3 pt-3">
+            <button
+              type="button"
+              onClick={() => setShowProfile(!showProfile)}
+              className="flex items-center gap-1.5 text-[11px] tracking-[2px] text-ink3 uppercase hover:text-ink2 transition-colors w-full"
+            >
+              <span className="text-[10px]">{showProfile ? '▾' : '▸'}</span>
+              赛道画像 <span className="font-light text-red-400">（必填）</span>
+            </button>
+            {showProfile && (
+              <div className="space-y-2.5 mt-2.5">
+                <div>
+                  <label className="text-[11px] tracking-[2px] text-ink3 uppercase block mb-1">目标受众</label>
+                  <Textarea
+                    value={profile.targetAudience}
+                    onChange={e => setProfile(p => ({ ...p, targetAudience: e.target.value }))}
+                    placeholder="例如：25-40岁都市白领，关注身心健康和传统文化"
+                    rows={2}
+                    className="bg-paper2 border-paper3 text-sm resize-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] tracking-[2px] text-ink3 uppercase block mb-1">账号人设</label>
+                  <Textarea
+                    value={profile.persona}
+                    onChange={e => setProfile(p => ({ ...p, persona: e.target.value }))}
+                    placeholder="例如：10年修行经验的道家师兄，温和智慧，接地气"
+                    rows={2}
+                    className="bg-paper2 border-paper3 text-sm resize-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] tracking-[2px] text-ink3 uppercase block mb-1">变现方向</label>
+                  <Textarea
+                    value={profile.product}
+                    onChange={e => setProfile(p => ({ ...p, product: e.target.value }))}
+                    placeholder="例如：线下禅修课程引流、养生茶饮品牌合作"
+                    rows={2}
+                    className="bg-paper2 border-paper3 text-sm resize-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] tracking-[2px] text-ink3 uppercase block mb-1">内容目标</label>
+                  <Textarea
+                    value={profile.contentGoal}
+                    onChange={e => setProfile(p => ({ ...p, contentGoal: e.target.value }))}
+                    placeholder="例如：涨粉为主，建立专业可信赖的形象"
+                    rows={2}
+                    className="bg-paper2 border-paper3 text-sm resize-none"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

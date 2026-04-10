@@ -3,12 +3,21 @@ import { z } from 'zod';
 import { resolveModel } from '@/lib/model';
 import { withApiGuard } from '@/lib/api-guard';
 
+// AI 有时返回 JSON 字符串而非数组，统一预处理
+const asArray = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((val) => {
+    if (typeof val === 'string') {
+      try { return JSON.parse(val); } catch { return val; }
+    }
+    return val;
+  }, schema);
+
 // 每个 step 的输出 schema
 const schemas = {
   // Step 1: 选题分析 + 策略推荐
   step1: z.object({
     analysis: z.string().describe('2-3句话的选题潜力分析'),
-    appeals: z.array(z.string()).describe('满足的诉求维度，如：有趣、有共鸣'),
+    appeals: asArray(z.array(z.string())).describe('满足的诉求维度，如：有趣、有共鸣'),
     desire: z.string().describe('触达的底层欲望'),
     strategy: z.string().describe('推荐的策略法：明道/动心/启思/破局'),
     subDirection: z.string().describe('推荐的子方向，如：认知颠覆、情感共鸣'),
@@ -18,27 +27,27 @@ const schemas = {
 
   // Step 3: 选题生成（3个选题 + 执行思路）
   step3: z.object({
-    topics: z.array(z.object({
+    topics: asArray(z.array(z.object({
       title: z.string().describe('选题标题'),
       hook: z.string().describe('前3秒开场钩子，20-40字'),
       hookType: z.string().describe('钩子类型：反常识/情感共鸣/故事悬念/权威数据/利益承诺/好奇缺口'),
       executionPlan: z.string().describe('执行思路：镜头开场、内容展开、情绪节奏、结尾引导，100-150字'),
-    })).describe('3个不同角度的选题方案'),
+    }))).describe('3个不同角度的选题方案'),
   }),
 
   // CopyWriter: only copytext + titles
   copywrite: z.object({
-    copytext: z.string().describe('完整文案正文，200-400字，换行用\\n'),
-    titles: z.array(z.string()).describe('3个爆款标题'),
+    copytext: z.string().describe('完整文案正文，300-800字，换行用\\n'),
+    titles: asArray(z.array(z.string())).describe('3个爆款标题'),
   }),
 
   // MetadataGenerator: analysis artifacts from copytext
   metadata: z.object({
-    emotionCurve: z.array(z.object({
+    emotionCurve: asArray(z.array(z.object({
       section: z.string().describe('段落标识，如：开头/展开/高潮/结尾'),
       emotion: z.string().describe('情绪标注，如：好奇、共鸣、惊讶、感动'),
       intensity: z.number().describe('情绪强度 1-10'),
-    })).describe('情绪曲线标注'),
+    }))).describe('情绪曲线标注'),
     shootingGuide: z.preprocess(
       (val) => typeof val === 'string' ? JSON.parse(val) : val,
       z.object({
@@ -48,34 +57,40 @@ const schemas = {
       })
     ).describe('拍摄指导'),
     structure: z.string().describe('使用的内容结构模型名称'),
-    music: z.array(z.string()).describe('3个BGM风格推荐'),
-    memory_entries: z.array(z.object({
+    music: asArray(z.array(z.string())).describe('3个BGM风格推荐'),
+    memory_entries: asArray(z.array(z.object({
       type: z.enum(['style', 'content', 'avoid', 'pattern']).describe('记忆类型'),
       content: z.string().describe('一句话规则描述'),
-    })).describe('从本次文案中提取的创作规律，2-4条'),
+    }))).describe('从本次文案中提取的创作规律，2-4条'),
+  }),
+
+  // Compliance: 违禁词替换后的文案
+  compliance: z.object({
+    copytext: z.string().describe('替换违禁词后的完整文案正文，换行用\\n'),
+    titles: asArray(z.array(z.string())).describe('替换违禁词后的3个标题'),
   }),
 
   // Step 4 optimize: same output as copywrite (re-generate with feedback)
   step4: z.object({
     copytext: z.string().describe('完整文案正文，200-400字，换行用\\n'),
-    titles: z.array(z.string()).describe('3个爆款标题'),
+    titles: asArray(z.array(z.string())).describe('3个爆款标题'),
   }),
 
   // Step 5: 润色
   polish: z.object({
     copytext: z.string().describe('润色后的正文内容，换行用\\n'),
-    titles: z.array(z.string()).describe('润色后的3个爆款标题'),
-    music: z.array(z.string()).describe('3个BGM风格推荐'),
+    titles: asArray(z.array(z.string())).describe('润色后的3个爆款标题'),
+    music: asArray(z.array(z.string())).describe('3个BGM风格推荐'),
   }),
 
   // Phase 2: Checker — quality scoring on 7 dimensions
   check: z.object({
-    scores: z.array(z.object({
+    scores: asArray(z.array(z.object({
       dimension: z.string().describe('评分维度名称'),
       score: z.number().describe('1-10分'),
       comment: z.string().describe('评价说明'),
       suggestion: z.string().optional().describe('改进建议'),
-    })).describe('7项评分'),
+    }))).describe('7项评分'),
     totalScore: z.number().describe('总分（满分70）'),
     overallSuggestion: z.string().describe('整体修改建议'),
     pass: z.boolean().describe('总分>=49为通过（7分及格线×7维度）'),
